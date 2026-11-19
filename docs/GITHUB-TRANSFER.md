@@ -1,5 +1,9 @@
 # انتقال سورس به GitHub موجود
 
+## وضعیت این نسخه
+
+اولین export سورس به مخزن عمومی `az58740/Multi-ProjectManager` انجام شد؛ مخزن قبلاً خالی بود و کد روی `main` در commit `d77e069` قرار گرفت. این عملیات فقط یک کپی سورس است و مخزن اصلی Webdev را تغییر نداده است. دستورهای پایین برای دریافت archive و همگام‌سازی آینده‌اند؛ اولین import را دوباره انجام ندهید.
+
 ## تفاوت مهم: کپی سورس در برابر تغییر مخزن اصلی Webdev
 
 پروژهٔ اجرایی فعلی در فضای کاری Webdev است. مسیر رسمی «تغییر canonical repository» در Webdev فقط یک مخزن خصوصیِ جدید ایجاد می‌کند؛ اتصال مستقیم به `az58740/Multi-ProjectManager` موجود یا adoption آن پشتیبانی نمی‌شود. بنابراین افزودن کد به GitHub به معنی تغییر مخزن اصلی Webdev نیست؛ تا وقتی این محدودیت وجود دارد، دو نسخه باید با commit/PR یا export همگام شوند. مخزن Webdev و تنظیمات آن با عملیات زیر تغییر نمی‌کند.
@@ -43,9 +47,9 @@ git commit -m "Import project management application"
 git push -u origin HEAD
 ```
 
-اگر branch جدا ساخته شد، در GitHub یک Pull Request از `import/project-management` به branch پیش‌فرض بازبینی و merge کنید. اگر repository خالی بود، اولین push شاخهٔ اولیه را ایجاد می‌کند. بعد از آن Vercel می‌تواند repository را import کند؛ این مرحله مستقل از preview Webdev است.
+چون مخزن مقصد خالی بود، اولین push روی `main` انجام شده است. برای syncهای بعدی یک branch جدا بسازید و تغییرات را با Pull Request بازبینی کنید؛ تاریخچهٔ مخزن Webdev و GitHub مستقل‌اند و نباید با force-push جایگزین شوند. پروژهٔ Vercel به‌صورت جداگانه به GitHub متصل شده است.
 
-اگر ترجیح می‌دهید من با GitHub connector شاخهٔ import یا PR بسازم، آن یک نوشتن جداگانه در حساب GitHub است؛ قبل از آن باید محدودهٔ شاخه و این نکته را تأیید کنید که canonical repository پروژهٔ Webdev عوض نمی‌شود.
+هر انتقال بعدی یک نوشتن جدید در حساب GitHub است؛ تا وقتی workflow همگام‌سازی آینده مشخص نشده، از push مستقیم به `main` خودداری کنید.
 
 ## نگهداری دو نسخه
 

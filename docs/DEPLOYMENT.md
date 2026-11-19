@@ -2,11 +2,11 @@
 
 ## وضعیت فعلی
 
-سورس برای ساخت آماده شده، اما هیچ Vercel deployment یا PostgreSQL عملیاتی ایجاد نشده است. Container runtime سرویس Go در Vercel و PostgreSQL خارجی باید جداگانه پیکربندی و آزموده شوند. دسترسی از ایران، شرایط استفاده، منطقهٔ داده، شبکه، هزینه و برنامهٔ پشتیبان‌گیری ارائه‌دهنده را پیش از انتخاب کنترل کنید.
+سورس در GitHub قرار گرفته و پروژهٔ Vercel `multi-project-manager` به آن متصل است. اولین build به علت تشخیص هم‌زمان Next.js و Container با خطای `MULTIPLE_FRAMEWORKS_SERVICE` شکست خورد؛ `vercel.json` اکنون `framework: nextjs` را برای frontend و `framework: container` را برای backend صریح می‌کند و build بعدی باید در Vercel بررسی شود. در پروژهٔ جدید Vercel، SSO protection روی deployment URLها روشن است؛ با این حال PostgreSQL پایدار، allowlist و OAuth سروری هنوز تنظیم نشده‌اند. برای production واقعی آماده نیست. Docker CLI در این محیط نیست، بنابراین Compose build/run هم آزموده نشده است. دسترسی از ایران، شرایط استفاده، منطقهٔ داده، شبکه و backup ارائه‌دهنده را پیش از انتخاب کنترل کنید.
 
 ## گزینهٔ Vercel
 
-`vercel.json` مسیرهای سایت Next.js از `frontend/` را به سرویس فرانت‌اند و `/api/*`، `/_health` و `/_ready` را به سرویس Container بک‌اند Go از `backend/` می‌فرستد. Container از `backend/Dockerfile` ساخته می‌شود. در تنظیمات Container مقدار `PORT=8080` لازم است؛ اپ مقدار `PORT` را می‌خواند و در حالت پیش‌فرض 8080 است. Services/Container Runtime را باید در اکانت پروژه و بر اساس پلن/منطقهٔ واقعی بررسی کرد. [Vercel Services](https://vercel.com/docs/services) · [Container Runtime](https://vercel.com/docs/functions/runtimes/container)
+`vercel.json` مسیرهای سایت Next.js از `frontend/` را به سرویس فرانت‌اند و `/api/*`، `/_health` و `/_ready` را به سرویس Container بک‌اند Go از `backend/` می‌فرستد. `framework` برای frontend روی `nextjs` و برای backend روی `container` تنظیم شده است؛ Container از `backend/Dockerfile` ساخته می‌شود. مقدار `PORT=8080` لازم است و اپ مقدار `PORT` را می‌خواند. [Vercel Services](https://vercel.com/docs/services) · [Service configuration reference](https://vercel.com/docs/services/config-reference) · [Container Runtime](https://vercel.com/docs/functions/runtimes/container)
 
 ### پایگاه‌دادهٔ Vercel
 

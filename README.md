@@ -60,11 +60,11 @@ Compose شامل web، API و PostgreSQL است. دیتابیس در volume `pos
 
 ## Vercel و PostgreSQL
 
-`vercel.json` دو سرویس frontend/Go و مسیرهای API را تعریف می‌کند. Vercel container حافظهٔ پایدار دیتابیس نیست؛ PostgreSQL باید به‌صورت سرویس مستقل و قابل‌دسترسی شبکه‌ای وصل شود. برای دادهٔ دائمی backend به `DATABASE_URL` و `APP_ALLOWED_OPEN_IDS` نیاز دارد. مقادیر Manus OAuth از Preview به Vercel خودکار منتقل نمی‌شوند؛ دامنهٔ OAuth نهایی باید HTTPS باشد و callback آن پذیرفته شود. **هنوز deployment واقعی Vercel یا پایگاه‌داده ایجاد نشده است.** تا وقتی PostgreSQL، مقادیر OAuth سمت‌سرور و deployment آزمایشی تنظیم و آزموده نشده‌اند، آن را سامانهٔ عملیاتی تلقی نکنید.
+`vercel.json` دو سرویس frontend/Go و مسیرهای API را تعریف می‌کند؛ framework هر سرویس صریحاً روی `nextjs` و `container` تنظیم شده است. پروژهٔ Vercel به GitHub متصل است. اولین build به علت ابهام framework شکست خورد؛ تنظیمات در سورس اصلاح شده و نتیجهٔ build بعدی باید در Vercel بررسی شود. هیچ PostgreSQL پایدار یا متغیر server-side OAuth/allowlist تنظیم نشده است؛ تا پیکربندی و آزمون این موارد، سامانه عملیاتی نیست. [راهنمای استقرار](docs/DEPLOYMENT.md)
 
 ## GitHub
 
-مخزن `az58740/Multi-ProjectManager` کاربر در GitHub موجود است. انتقال کد به آن و اتصال خودکار Vercel پس از commit انجام می‌شود، اما اتصال مستقیم مخزن موجود به‌عنوان مخزن canonical در پروژهٔ Webdev از مسیر رسمی فعلی پشتیبانی نمی‌شود؛ بنابراین کپی GitHub و workspace Webdev فعلاً دو نسخه‌اند و همگام‌سازی آینده با commit/PR انجام می‌شود. راهنمای جزئیات در [انتقال به GitHub](docs/GITHUB-TRANSFER.md) است.
+نسخهٔ اولیهٔ سورس در شاخهٔ `main` مخزن عمومی `az58740/Multi-ProjectManager` قرار گرفت (commit `d77e069`). این export مخزن Webdev را عوض نکرده است؛ نسخهٔ Webdev همچنان canonical است و تغییرات بعدی خودکار sync نمی‌شوند. پروژهٔ Vercel نیز جداگانه به همین مخزن وصل شده است. راهنمای همگام‌سازی آینده در [انتقال به GitHub](docs/GITHUB-TRANSFER.md) است.
 
 ## منابع تصویر
 

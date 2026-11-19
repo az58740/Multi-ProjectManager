@@ -1,10 +1,12 @@
 {
   "services": {
     "frontend": {
-      "root": "frontend/"
+      "root": "frontend/",
+      "framework": "nextjs"
     },
     "backend": {
       "root": "backend/",
+      "framework": "container",
       "runtime": "container",
       "entrypoint": "Dockerfile"
     }
