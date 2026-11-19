@@ -369,12 +369,8 @@ export function ProjectDashboard() {
       </div>
 
       <footer className="border-t border-line bg-paper">
-        <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <h2 className="m-0 text-sm font-black text-forest">{t.dashboardKicker}</h2>
-            <span className="text-xs font-semibold text-muted">{t.projectCount}</span>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+          <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
             {[
               [t.summaryTotal, counts.total, "bg-cream"],
               [t.summaryActive, counts.active, "bg-sage"],
@@ -382,9 +378,9 @@ export function ProjectDashboard() {
               [t.summaryPaused, counts.paused, "bg-cream"],
               [t.summaryCompleted, counts.completed, "bg-cream"],
             ].map(([label, count, color]) => (
-              <div key={label} className={`rounded-2xl border border-line ${color} px-4 py-4`}>
-                <p className="mb-1 mt-0 text-xs font-semibold leading-5 text-muted">{label}</p>
-                <p className="m-0 text-2xl font-black text-forest">{Number(count).toLocaleString(isFa ? "fa-IR" : "en-US")}</p>
+              <div key={label} className={`min-w-0 rounded-xl border border-line ${color} px-1.5 py-2 text-center sm:rounded-2xl sm:px-3 sm:py-3`}>
+                <p className="m-0 min-h-8 overflow-hidden text-[10px] font-semibold leading-4 text-muted sm:min-h-0 sm:text-xs sm:leading-5">{label}</p>
+                <p className="m-0 text-lg font-black text-forest sm:text-2xl">{Number(count).toLocaleString(isFa ? "fa-IR" : "en-US")}</p>
               </div>
             ))}
           </div>
