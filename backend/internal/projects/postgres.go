@@ -52,7 +52,16 @@ func parsePoolConfig(databaseURL string) (*pgxpool.Config, error) {
 }
 
 func applyMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	_, err := pool.Exec(ctx, `
+	// CREATE TABLE IF NOT EXISTS alone is not concurrency-safe across fresh instances.
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin migration ledger: %w", err)
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1)::bigint)`, "multi-project-manager:migrations"); err != nil {
+		return fmt.Errorf("lock migration ledger: %w", err)
+	}
+	_, err = tx.Exec(ctx, `
 		CREATE TABLE IF NOT EXISTS schema_migrations (
 			version TEXT PRIMARY KEY,
 			applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -60,6 +69,9 @@ func applyMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	`)
 	if err != nil {
 		return fmt.Errorf("prepare migration ledger: %w", err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit migration ledger: %w", err)
 	}
 
 	files, err := fs.Glob(migrationFiles, "migrations/*.sql")

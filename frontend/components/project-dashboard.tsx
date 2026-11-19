@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, Check, CirclePlus, ClipboardList, Globe2, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Warehouse, X } from "lucide-react";
+import { Building2, Check, CirclePlus, ClipboardList, Globe2, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -11,10 +11,11 @@ import { ProjectDetails } from "@/components/project-details";
 import { ProjectForm } from "@/components/project-form";
 import { ProjectModal } from "@/components/project-modal";
 import { fetchWithTimeout } from "@/lib/http";
+import { accountMessages } from "@/lib/account-i18n";
+import { jsonHeaders, type Session } from "@/lib/accounts";
 import { isProjectListPayload, isProjectRecord, isProjectStatus, isProjectType, PROJECT_STATUSES, PROJECT_TYPES, type Project, type ProjectStatus, type ProjectType, type ProjectWritePayload } from "@/lib/projects";
 
 type ModalMode = "create" | "edit" | "details" | null;
-type SessionPayload = { authenticated?: boolean; authorized?: boolean };
 
 function typeLabel(type: ProjectType, t: ReturnType<typeof useLocale>["t"]) {
   const labels: Record<ProjectType, string> = {
@@ -49,8 +50,13 @@ export function ProjectDashboard() {
   const router = useRouter();
   const { locale, t } = useLocale();
   const isFa = locale === "fa";
+  const m = accountMessages[locale];
   const [authorized, setAuthorized] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sessionError, setSessionError] = useState(false);
+  const [sessionAttempt, setSessionAttempt] = useState(0);
+  const [logoutError, setLogoutError] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<ProjectType | "all">("all");
@@ -69,24 +75,34 @@ export function ProjectDashboard() {
   useEffect(() => {
     let active = true;
     async function load() {
+      setLoading(true);
+      setSessionError(false);
       let sessionVerified = false;
       try {
         const sessionResponse = await fetchWithTimeout("/api/v1/auth/session", { cache: "no-store" }, 8_000);
-        if (!sessionResponse.ok) {
+        if (sessionResponse.status === 401) {
           router.replace("/login");
           return;
         }
-        const session = await sessionResponse.json() as SessionPayload;
+        if (sessionResponse.status === 403) {
+          if (active) setAccessDenied(true);
+          return;
+        }
+        if (!sessionResponse.ok) throw new Error("session unavailable");
+        const session = await sessionResponse.json() as Session;
         if (!session.authenticated) {
           router.replace("/login");
           return;
         }
-        if (session.authorized === false) {
+        if (session.authorized !== true) {
           if (active) setAccessDenied(true);
           return;
         }
         sessionVerified = true;
-        if (active) setAuthorized(true);
+        if (active) {
+          setIsAdmin(session.user?.role === "admin");
+          setAuthorized(true);
+        }
 
         const projectResponse = await fetchWithTimeout("/api/v1/projects", { cache: "no-store" }, 10_000);
         if (!projectResponse.ok) throw new Error("project service unavailable");
@@ -98,25 +114,28 @@ export function ProjectDashboard() {
         }
       } catch {
         if (active && sessionVerified) setLoadError(true);
-        else if (active) router.replace("/login");
+        else if (active) setSessionError(true);
       } finally {
         if (active) setLoading(false);
       }
     }
     void load();
     return () => { active = false; };
-  }, [router]);
+  }, [router, sessionAttempt]);
 
   const closeModal = useCallback(() => setModalMode(null), []);
 
   async function signOut() {
+    setLogoutError(false);
     try {
-      await fetchWithTimeout("/api/v1/auth/logout", {
+      const response = await fetchWithTimeout("/api/v1/auth/logout", {
         method: "POST",
-        headers: { "X-App-Origin": window.location.origin },
+        headers: jsonHeaders(),
       }, 4_000);
-    } finally {
+      if (!response.ok) throw new Error("logout failed");
       router.push("/login");
+    } catch {
+      setLogoutError(true);
     }
   }
 
@@ -195,6 +214,9 @@ export function ProjectDashboard() {
     completed: projects.filter((project) => project.status === "completed").length,
   }), [projects]);
 
+  if (sessionError) {
+    return <main className="grid min-h-screen place-items-center bg-cream p-6"><section className="w-full max-w-lg rounded-[28px] border border-line bg-paper p-7 text-center"><p role="alert" className="text-sm leading-7 text-muted">{m.sessionError}</p><button type="button" onClick={() => setSessionAttempt((current) => current + 1)} className="mt-4 min-h-12 rounded-full bg-forest px-6 text-sm font-bold text-white">{m.retry}</button></section></main>;
+  }
   if (loading || (!authorized && !accessDenied)) {
     return <main className="grid min-h-screen place-items-center bg-cream text-sm font-semibold text-muted"><p role="status" aria-live="polite">{t.loading}</p></main>;
   }
@@ -205,6 +227,7 @@ export function ProjectDashboard() {
         <section className="w-full max-w-lg rounded-[28px] border border-line bg-paper p-7 text-center shadow-xl shadow-forest/5 sm:p-10">
           <span className="mx-auto grid size-14 place-items-center rounded-[20px] bg-amber-soft text-forest"><Building2 className="size-6" aria-hidden="true" /></span>
           <h1 className="mb-0 mt-5 text-xl font-black leading-8 text-forest">{t.accountNotAllowed}</h1>
+          {logoutError && <p role="alert" className="mt-4 text-sm text-red-800">{m.logoutError}</p>}
           <button type="button" onClick={signOut} className="mt-6 min-h-12 rounded-full bg-forest px-6 text-sm font-extrabold text-white transition hover:bg-forest-light">{t.logout}</button>
         </section>
       </main>
@@ -259,6 +282,7 @@ export function ProjectDashboard() {
         <section className="min-w-0">
           {demoMode && <div className="mb-5 rounded-2xl border border-amber/30 bg-amber-soft/80 px-4 py-3 text-xs font-semibold leading-6 text-forest sm:text-sm">{t.demoBanner}</div>}
           {loadError && <div role="alert" className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">{t.errorProjects}</div>}
+          {logoutError && <div role="alert" className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{m.logoutError}</div>}
           {notice && (
             <div role={noticeError ? "alert" : "status"} className={`mb-5 flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold ${noticeError ? "border-red-200 bg-red-50 text-red-800" : "border-sage-dark bg-sage text-forest"}`}>
               {!noticeError && <Check className="size-4" aria-hidden="true" />}{notice}
@@ -271,9 +295,12 @@ export function ProjectDashboard() {
               <h1 className="m-0 mt-2 text-3xl font-black tracking-tight text-forest sm:text-4xl">{t.dashboardTitle}</h1>
               <p className="mb-0 mt-2 text-sm leading-7 text-muted">{t.dashboardSubtitle}</p>
             </div>
-            <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-forest px-5 text-sm font-extrabold text-white shadow-md shadow-forest/10 transition hover:-translate-y-0.5 hover:bg-forest-light">
-              <CirclePlus className="size-5" aria-hidden="true" />{t.createProject}
-            </button>
+            <div className="flex flex-wrap gap-3">
+              {isAdmin && <Link href="/dashboard/users" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-sage-dark bg-paper px-5 text-sm font-extrabold text-forest transition hover:bg-sage"><Users className="size-5" aria-hidden="true" />{m.users}</Link>}
+              <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-forest px-5 text-sm font-extrabold text-white shadow-md shadow-forest/10 transition hover:-translate-y-0.5 hover:bg-forest-light">
+                <CirclePlus className="size-5" aria-hidden="true" />{t.createProject}
+              </button>
+            </div>
           </div>
 
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">

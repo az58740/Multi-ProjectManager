@@ -1,203 +1,287 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
-func TestSessionRoundTripAndAppBinding(t *testing.T) {
-	auth := &OAuth{projectID: "project-1", jwtSecret: []byte("test-secret")}
-	token, err := auth.signSession("user-123", time.Hour)
-	if err != nil {
-		t.Fatalf("signSession: %v", err)
-	}
-	user, err := auth.readSession(token)
-	if err != nil {
-		t.Fatalf("readSession: %v", err)
-	}
-	if user.OpenID != "user-123" {
-		t.Fatalf("OpenID = %q, want user-123", user.OpenID)
-	}
+const origin = "https://app.example.test"
+const adminEmail = "admin@example.test"
+const adminPassword = "admin-password-very-safe"
+const userPassword = "member-password-safe"
 
-	wrongProject := &OAuth{projectID: "project-2", jwtSecret: []byte("test-secret")}
-	if _, err := wrongProject.readSession(token); err == nil {
-		t.Fatal("expected a session signed for another project to be rejected")
+func setup(t *testing.T) (*Auth, *http.ServeMux) {
+	t.Helper()
+	a, err := New(NewMemoryStore(), origin, true)
+	if err != nil {
+		t.Fatal(err)
 	}
-	wrongSecret := &OAuth{projectID: "project-1", jwtSecret: []byte("different-secret")}
-	if _, err := wrongSecret.readSession(token); err == nil {
-		t.Fatal("expected a session signed with another secret to be rejected")
+	created, err := a.Bootstrap(context.Background(), adminEmail, adminPassword)
+	if err != nil || !created {
+		t.Fatalf("bootstrap %v %v", created, err)
+	}
+	mux := http.NewServeMux()
+	a.Register(mux)
+	mux.Handle("/api/v1/projects", a.RequireSameOrigin(a.RequireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) }))))
+	return a, mux
+}
+func req(mux http.Handler, method, path, body string, cookie *http.Cookie, orig string) *httptest.ResponseRecorder {
+	r := httptest.NewRequest(method, path, strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	if orig != "" {
+		r.Header.Set("Origin", orig)
+	}
+	if cookie != nil {
+		r.AddCookie(cookie)
+	}
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	return w
+}
+func mustStatus(t *testing.T, w *httptest.ResponseRecorder, code int) {
+	t.Helper()
+	if w.Code != code {
+		t.Fatalf("status=%d want=%d body=%s", w.Code, code, w.Body.String())
 	}
 }
-
-func TestExpiredSessionRejected(t *testing.T) {
-	auth := &OAuth{projectID: "project-1", jwtSecret: []byte("test-secret")}
-	token, err := auth.signSession("user-123", -time.Minute)
-	if err != nil {
-		t.Fatalf("signSession: %v", err)
+func loginAs(t *testing.T, mux http.Handler, email, password string) *http.Cookie {
+	t.Helper()
+	data, _ := json.Marshal(map[string]string{"email": email, "password": password})
+	w := req(mux, "POST", "/api/v1/auth/login", string(data), nil, origin)
+	mustStatus(t, w, 200)
+	if len(w.Result().Cookies()) != 1 {
+		t.Fatal("missing session cookie")
 	}
-	if _, err := auth.readSession(token); err == nil {
-		t.Fatal("expected expired session to be rejected")
-	}
+	return w.Result().Cookies()[0]
 }
-
-func TestRequireAllowedUser(t *testing.T) {
-	oauth := &OAuth{allowedIDs: ParseOpenIDAllowlist("owner-1, member-2")}
-	endpoint := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-
-	for _, test := range []struct {
-		openID string
-		status int
-	}{
-		{openID: "member-2", status: http.StatusNoContent},
-		{openID: "outsider", status: http.StatusForbidden},
-	} {
-		request := httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
-		ctx := context.WithValue(request.Context(), userContextKey{}, User{OpenID: test.openID})
-		response := httptest.NewRecorder()
-		oauth.RequireAllowedUser(endpoint).ServeHTTP(response, request.WithContext(ctx))
-		if response.Code != test.status {
-			t.Errorf("OpenID %q: status = %d, want %d", test.openID, response.Code, test.status)
+func userID(t *testing.T, w *httptest.ResponseRecorder) string {
+	t.Helper()
+	var p struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &p); err != nil || p.ID == "" {
+		t.Fatalf("expected user response: %s %v", w.Body.String(), err)
+	}
+	return p.ID
+}
+func TestSecurityFlows(t *testing.T) {
+	_, m := setup(t)
+	registration := `{"name":"Member","email":"MEMBER@example.test","password":"` + userPassword + `"}`
+	mustStatus(t, req(m, "POST", "/api/v1/auth/register", registration, nil, ""), 403)
+	mustStatus(t, req(m, "POST", "/api/v1/auth/register", registration, nil, "https://evil.example"), 403)
+	mustStatus(t, req(m, "POST", "/api/v1/auth/register", `{"name":"X","email":"x@example.test","password":"member-password-safe","role":"admin"}`, nil, origin), 400)
+	w := req(m, "POST", "/api/v1/auth/register", registration, nil, origin)
+	mustStatus(t, w, 201)
+	if len(w.Result().Cookies()) != 0 || !strings.Contains(w.Body.String(), `"pending"`) {
+		t.Fatal("registration must not create a session")
+	}
+	w = req(m, "POST", "/api/v1/auth/login", `{"email":"member@example.test","password":"`+userPassword+`"}`, nil, origin)
+	mustStatus(t, w, 403)
+	if !strings.Contains(w.Body.String(), `"code":"pending"`) {
+		t.Fatal(w.Body.String())
+	}
+	mustStatus(t, req(m, "GET", "/api/v1/projects", "", nil, ""), 401)
+	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", nil, ""), 401)
+	mustStatus(t, req(m, "POST", "/api/v1/auth/login", `{"email":"admin@example.test","password":"wrong"}`, nil, origin), 401)
+	admin := loginAs(t, m, adminEmail, adminPassword)
+	if !admin.HttpOnly || !admin.Secure || admin.SameSite != http.SameSiteStrictMode || admin.Path != "/" || admin.MaxAge <= 0 {
+		t.Fatalf("unsafe cookie: %#v", admin)
+	}
+	w = req(m, "GET", "/api/v1/users", "", admin, "")
+	mustStatus(t, w, 200)
+	var list struct {
+		Items []User `json:"items"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil || len(list.Items) != 2 {
+		t.Fatalf("list %s %v", w.Body.String(), err)
+	}
+	var member, adminID string
+	for _, u := range list.Items {
+		if u.Email == "member@example.test" {
+			member = u.ID
+			if u.Role != "user" || u.Status != "pending" {
+				t.Fatal(u)
+			}
+		} else {
+			adminID = u.ID
 		}
 	}
+	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+adminID, `{"role":"user"}`, admin, origin), 409)
+	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+adminID, `{"status":"disabled"}`, admin, origin), 409)
+	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+member, `{"status":"active"}`, admin, ""), 403)
+	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+member, `{"status":"active"}`, admin, origin), 200)
+	user := loginAs(t, m, "member@example.test", userPassword)
+	mustStatus(t, req(m, "GET", "/api/v1/projects", "", user, ""), 204)
+	mustStatus(t, req(m, "POST", "/api/v1/projects", "{}", user, "https://evil.example"), 403)
+	mustStatus(t, req(m, "GET", "/api/v1/users", "", user, ""), 403)
+	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+member, `{"role":"admin"}`, user, origin), 403)
+	mustStatus(t, req(m, "POST", "/api/v1/users", `{"name":"Escalation","email":"no@example.test","password":"some-long-password","role":"admin","status":"active"}`, user, origin), 403)
+	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+member, `{"status":"disabled"}`, admin, origin), 200)
+	mustStatus(t, req(m, "GET", "/api/v1/projects", "", user, ""), 401)
+	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", user, ""), 401)
+	mustStatus(t, req(m, "POST", "/api/v1/auth/logout", "", admin, "https://evil.example"), 403)
+	mustStatus(t, req(m, "POST", "/api/v1/auth/logout", "", admin, origin), 200)
+	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", admin, ""), 401)
 }
-
-func TestParseOpenIDAllowlist(t *testing.T) {
-	allowed := ParseOpenIDAllowlist(" owner-1, member-2, ,owner-1 ")
-	if len(allowed) != 2 {
-		t.Fatalf("allowlist size = %d, want 2", len(allowed))
-	}
-	if _, ok := allowed["member-2"]; !ok {
-		t.Fatal("expected trimmed member ID in allowlist")
-	}
+func TestCreateUpdateAndRevocation(t *testing.T) {
+	_, m := setup(t)
+	admin := loginAs(t, m, adminEmail, adminPassword)
+	w := req(m, "POST", "/api/v1/users", `{"name":"Second","email":"second@example.test","password":"member-password-safe","role":"admin","status":"active"}`, admin, origin)
+	mustStatus(t, w, 201)
+	id := userID(t, w)
+	second := loginAs(t, m, "second@example.test", userPassword)
+	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+id, `{"password":"replacement-password-safe"}`, admin, origin), 200)
+	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", second, ""), 401)
+	mustStatus(t, req(m, "POST", "/api/v1/auth/login", `{"email":"second@example.test","password":"member-password-safe"}`, nil, origin), 401)
+	second = loginAs(t, m, "second@example.test", "replacement-password-safe")
+	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+id, `{"role":"user"}`, admin, origin), 200)
+	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", second, ""), 401)
+	mustStatus(t, req(m, "POST", "/api/v1/users", `{"name":"Dup","email":"SECOND@example.test","password":"member-password-safe","role":"user","status":"active"}`, admin, origin), 409)
 }
-
-func TestRequireSameOrigin(t *testing.T) {
-	oauth := &OAuth{publicOrigin: "https://app.example.test"}
-	endpoint := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
-	for _, test := range []struct {
-		origin    string
-		appOrigin string
-		status    int
-	}{
-		{origin: "https://app.example.test", appOrigin: "https://app.example.test", status: http.StatusNoContent},
-		{origin: "https://attacker.example", appOrigin: "https://app.example.test", status: http.StatusForbidden},
-		{origin: "https://app.example.test", status: http.StatusForbidden},
-	} {
-		request := httptest.NewRequest(http.MethodPost, "/api/v1/projects", nil)
-		request.Header.Set("Origin", test.origin)
-		request.Header.Set("X-App-Origin", test.appOrigin)
-		response := httptest.NewRecorder()
-		oauth.RequireSameOrigin(endpoint).ServeHTTP(response, request)
-		if response.Code != test.status {
-			t.Errorf("origin %q / app origin %q: status = %d, want %d", test.origin, test.appOrigin, response.Code, test.status)
+func TestBootstrapOneTimeAndConcurrent(t *testing.T) {
+	s := NewMemoryStore()
+	ctx := context.Background()
+	var wg sync.WaitGroup
+	created := make(chan bool, 24)
+	for i := 0; i < 24; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			r := record{User: User{ID: fmt.Sprint(i), Email: fmt.Sprintf("%d@example.test", i), Role: "admin", Status: "active"}, PasswordHash: "hash"}
+			ok, err := s.Bootstrap(ctx, r)
+			if err != nil {
+				t.Error(err)
+			}
+			created <- ok
+		}(i)
+	}
+	wg.Wait()
+	close(created)
+	n := 0
+	for ok := range created {
+		if ok {
+			n++
 		}
 	}
-}
-
-func TestParseOrigin(t *testing.T) {
-	got, err := parseOrigin("https://example.test")
-	if err != nil || got != "https://example.test" {
-		t.Fatalf("parseOrigin = %q, %v", got, err)
+	if n != 1 {
+		t.Fatalf("bootstrap winners %d", n)
 	}
-	for _, value := range []string{"//example.test", "https://example.test/path", "https://user@example.test", "javascript:alert(1)"} {
-		if _, err := parseOrigin(value); err == nil {
-			t.Errorf("parseOrigin(%q) should fail", value)
-		}
+	all, _ := s.List(ctx)
+	if len(all) != 1 {
+		t.Fatal(all)
 	}
 }
 
-func TestStartRejectsMismatchedBrowserOrigin(t *testing.T) {
-	t.Setenv("APP_ENV", "development")
-	t.Setenv("VERCEL", "")
-	auth := &OAuth{
-		projectID: "project-1", portalURL: "https://auth.example.test", apiURL: "https://api.example.test", jwtSecret: []byte("secret"),
+func TestBootstrapNeverOverwritesOrPromotes(t *testing.T) {
+	ctx := context.Background()
+	a, mux := setup(t)
+	created, err := a.Bootstrap(ctx, "other@example.test", "replacement-password-safe")
+	if err != nil || created {
+		t.Fatalf("second bootstrap changed existing store: %v %v", created, err)
 	}
-	request := httptest.NewRequest("POST", "/api/v1/auth/start", nil)
-	request.Header.Set("Origin", "https://attacker.example")
-	request.Header.Set("X-App-Origin", "https://app.example")
-	response := httptest.NewRecorder()
-	auth.start(response, request)
-	if response.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want 403", response.Code)
+	loginAs(t, mux, adminEmail, adminPassword)
+	store := NewMemoryStore()
+	user := record{User: User{ID: "pending", Email: "pending@example.test", Role: "user", Status: "pending"}, PasswordHash: "hash"}
+	if _, err := store.Create(ctx, user, ""); err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestProductionOAuthRequiresExactHTTPSOrigin(t *testing.T) {
-	t.Setenv("APP_ENV", "production")
-	t.Setenv("VERCEL", "")
-	oauth := &OAuth{projectID: "project-1", portalURL: "https://auth.example.test", apiURL: "https://api.example.test", jwtSecret: []byte("secret")}
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/start", nil)
-	request.Header.Set("Origin", "https://app.example.test")
-	request.Header.Set("X-App-Origin", "https://app.example.test")
-	response := httptest.NewRecorder()
-	oauth.start(response, request)
-	if response.Code != http.StatusServiceUnavailable {
-		t.Fatalf("status = %d, want 503 without PUBLIC_APP_ORIGIN", response.Code)
-	}
-}
-
-func TestProductionProviderURLsRequireHTTPS(t *testing.T) {
-	t.Setenv("APP_ENV", "production")
-	t.Setenv("VERCEL", "")
-	t.Setenv("PUBLIC_APP_ORIGIN", "https://app.example.test")
-	base := OAuth{
-		projectID: "project-1", portalURL: "https://auth.example.test", apiURL: "https://api.example.test",
-		jwtSecret: []byte("secret"), publicOrigin: "https://app.example.test",
-	}
-	if !base.Configured() {
-		t.Fatal("expected complete HTTPS production configuration to be accepted")
-	}
-	base.portalURL = "http://auth.example.test"
-	if base.Configured() {
-		t.Fatal("expected HTTP OAuth portal to be rejected in production")
-	}
-	base.portalURL = "https://auth.example.test"
-	base.apiURL = "http://api.example.test"
-	if base.Configured() {
-		t.Fatal("expected HTTP OAuth API to be rejected in production")
-	}
-}
-
-func TestStartUsesSecureCrossSiteStateCookie(t *testing.T) {
-	t.Setenv("APP_ENV", "development")
-	t.Setenv("VERCEL", "")
-	auth := &OAuth{
-		projectID: "project-1", portalURL: "https://auth.example.test", apiURL: "https://api.example.test", jwtSecret: []byte("secret"),
-		httpClient: &http.Client{Timeout: time.Second},
-	}
-	request := httptest.NewRequest("POST", "/api/v1/auth/start", nil)
-	request.Header.Set("Origin", "https://app.example.test")
-	request.Header.Set("X-App-Origin", "https://app.example.test")
-	response := httptest.NewRecorder()
-	auth.start(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
-	}
-	cookie := response.Result().Cookies()[0]
-	if cookie.Name != stateCookieName || !cookie.Secure || cookie.SameSite != http.SameSiteNoneMode || !cookie.HttpOnly {
-		t.Fatalf("unexpected OAuth state cookie attributes: %#v", cookie)
-	}
-	var payload map[string]string
-	if err := json.Unmarshal(response.Body.Bytes(), &payload); err != nil {
-		t.Fatalf("decode authorization response: %v", err)
-	}
-	authorizationURL, err := url.Parse(payload["authorizationUrl"])
+	bootstrap, err := New(store, origin, true)
 	if err != nil {
-		t.Fatalf("parse authorization URL: %v", err)
+		t.Fatal(err)
 	}
-	if authorizationURL.Path != "/app-auth" || authorizationURL.Query().Get("appId") != "project-1" || authorizationURL.Query().Get("responseType") != "code" {
-		t.Fatalf("unexpected authorization URL: %s", authorizationURL)
+	created, err = bootstrap.Bootstrap(ctx, adminEmail, adminPassword)
+	if err != nil || created {
+		t.Fatalf("bootstrap must not create or promote an account after registration: %v %v", created, err)
 	}
-	if authorizationURL.Query().Get("state") == "" {
-		t.Fatal("OAuth state was not populated")
+	users, err := store.List(ctx)
+	if err != nil || len(users) != 1 || users[0].Role != "user" || users[0].Status != "pending" {
+		t.Fatalf("pending user unexpectedly changed: %v %v", users, err)
+	}
+}
+
+func TestSessionExpiryAndAtomicLastAdmin(t *testing.T) {
+	s := NewMemoryStore()
+	ctx := context.Background()
+	one := record{User: User{ID: "1", Email: "1@x", Role: "admin", Status: "active"}, PasswordHash: "hash"}
+	two := record{User: User{ID: "2", Email: "2@x", Role: "admin", Status: "active"}, PasswordHash: "hash"}
+	s.Bootstrap(ctx, one)
+	s.Create(ctx, two, "1")
+	if err := s.NewSession(ctx, "1", "hash", []byte("expired"), time.Now().Add(-time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Session(ctx, []byte("expired")); err != ErrNotFound {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	results := make(chan error, 2)
+	for _, id := range []string{"1", "2"} {
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			status := "disabled"
+			_, err := s.Update(ctx, "1", id, changes{Status: &status})
+			results <- err
+		}(id)
+	}
+	wg.Wait()
+	close(results)
+	n := 0
+	for e := range results {
+		if e == nil {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Fatalf("successful demotions=%d", n)
+	}
+	users, _ := s.List(ctx)
+	active := 0
+	for _, u := range users {
+		if u.Role == "admin" && u.Status == "active" {
+			active++
+		}
+	}
+	if active != 1 {
+		t.Fatal(users)
+	}
+}
+func TestLimitsInputAndOrigin(t *testing.T) {
+	a, m := setup(t)
+	for i := 0; i < 11; i++ {
+		w := req(m, "POST", "/api/v1/auth/login", `{"email":"nobody@example.test","password":"long-wrong-password"}`, nil, origin)
+		if i < 10 {
+			mustStatus(t, w, 401)
+		} else {
+			mustStatus(t, w, 429)
+			if w.Header().Get("Retry-After") == "" {
+				t.Fatal("retry header missing")
+			}
+		}
+	}
+	mustStatus(t, req(m, "POST", "/api/v1/auth/login", `{"email":"admin@example.test","password":"x"}`+strings.Repeat(" ", 9000), nil, origin), 400)
+	admin := loginAs(t, m, adminEmail, adminPassword)
+	r := httptest.NewRequest("POST", "/api/v1/auth/logout", bytes.NewBuffer(nil))
+	r.Header.Set("Origin", origin)
+	r.Header.Set("X-App-Origin", "https://evil.example")
+	r.AddCookie(admin)
+	w := httptest.NewRecorder()
+	m.ServeHTTP(w, r)
+	mustStatus(t, w, 403)
+	if _, err := New(NewMemoryStore(), "http://app.example.test", true); err == nil {
+		t.Fatal("production allowed HTTP origin")
+	}
+	if _, err := New(NewMemoryStore(), "", true); err == nil {
+		t.Fatal("production allowed missing origin")
+	}
+	if a.secure != true {
+		t.Fatal("HTTPS cookie not secure")
 	}
 }

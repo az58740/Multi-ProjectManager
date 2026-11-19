@@ -1,439 +1,486 @@
 package auth
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
-	"log"
+	"mime"
+	"net"
 	"net/http"
+	"net/mail"
 	"net/url"
-	"os"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
-const sessionCookieName = "webdev_app_session"
-const stateCookieName = "webdev_oauth_state"
-const callbackPath = "/api/v1/auth/callback"
+const sessionCookieName = "mpm_session"
+const sessionLifetime = 7 * 24 * time.Hour
+const maxBody = 8192
+const limitWindow = 15 * time.Minute
 
-type User struct {
-	OpenID string `json:"openId"`
-}
-
-type OAuth struct {
-	projectID    string
-	portalURL    string
-	apiURL       string
-	jwtSecret    []byte
+type Auth struct {
+	store        Store
 	publicOrigin string
-	allowedIDs   map[string]struct{}
-	httpClient   *http.Client
+	secure       bool
+	dummyHash    []byte
 }
+type userContextKey struct{}
 
-type oauthState struct {
-	RedirectURI string `json:"redirectUri"`
-	Nonce       string `json:"nonce"`
-}
-
-type tokenResponse struct {
-	AccessToken string `json:"accessToken"`
-}
-
-type userInfoResponse struct {
-	OpenID string `json:"openId"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-}
-
-func NewFromEnv() *OAuth {
-	return &OAuth{
-		projectID:    strings.TrimSpace(os.Getenv("MANUS_PROJECT_ID")),
-		portalURL:    strings.TrimSpace(os.Getenv("MANUS_OAUTH_PORTAL_URL")),
-		apiURL:       strings.TrimRight(strings.TrimSpace(os.Getenv("MANUS_OAUTH_API_URL")), "/"),
-		jwtSecret:    []byte(os.Getenv("MANUS_JWT_SECRET")),
-		publicOrigin: strings.TrimRight(strings.TrimSpace(os.Getenv("PUBLIC_APP_ORIGIN")), "/"),
-		allowedIDs:   ParseOpenIDAllowlist(os.Getenv("APP_ALLOWED_OPEN_IDS")),
-		httpClient:   &http.Client{Timeout: 15 * time.Second},
+func New(store Store, origin string, production bool) (*Auth, error) {
+	if store == nil {
+		return nil, errors.New("auth store is required")
 	}
-}
-
-func ParseOpenIDAllowlist(value string) map[string]struct{} {
-	allowed := make(map[string]struct{})
-	for _, id := range strings.Split(value, ",") {
-		if id = strings.TrimSpace(id); id != "" {
-			allowed[id] = struct{}{}
-		}
+	origin = strings.TrimSpace(origin)
+	if origin == "" && !production {
+		origin = "http://localhost:3000"
 	}
-	return allowed
-}
-
-func (o *OAuth) HasOpenIDAllowlist() bool {
-	return len(o.allowedIDs) > 0
-}
-
-func (o *OAuth) Configured() bool {
-	requireHTTPS := o.requiresPublicOrigin()
-	if o.projectID == "" || len(o.jwtSecret) == 0 || !validProviderBase(o.portalURL, requireHTTPS) || !validProviderBase(o.apiURL, requireHTTPS) {
-		return false
+	normalized, err := parseOrigin(origin)
+	if err != nil || normalized != strings.TrimRight(origin, "/") || (production && !strings.HasPrefix(normalized, "https://")) {
+		return nil, errors.New("PUBLIC_APP_ORIGIN must be an exact HTTPS origin in production (or HTTP(S) origin in development)")
 	}
-	if !requireHTTPS {
-		return true
+	dummy, err := bcrypt.GenerateFromPassword([]byte("constant-dummy-password-not-a-user"), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
 	}
-	origin, err := parseOrigin(o.publicOrigin)
-	return err == nil && origin == o.publicOrigin && strings.HasPrefix(origin, "https://")
+	return &Auth{store: store, publicOrigin: normalized, secure: strings.HasPrefix(normalized, "https://"), dummyHash: dummy}, nil
 }
-
-func validProviderBase(value string, requireHTTPS bool) bool {
-	parsed, err := url.Parse(value)
-	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Opaque != "" {
-		return false
+func (a *Auth) Bootstrap(ctx context.Context, email, password string) (bool, error) {
+	if email == "" && password == "" {
+		return false, nil
 	}
-	if requireHTTPS {
-		return parsed.Scheme == "https"
+	if email == "" || password == "" {
+		return false, errors.New("both BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD are required")
 	}
-	return parsed.Scheme == "https" || parsed.Scheme == "http"
-}
-
-func (o *OAuth) OpenIDAllowed(openID string) bool {
-	if len(o.allowedIDs) == 0 {
-		return true // the API refuses persistent storage without an allowlist
+	email, ok := validEmail(email)
+	if !ok || !validPassword(password) {
+		return false, errors.New("invalid bootstrap administrator email or password (password must be 12–72 bytes)")
 	}
-	_, ok := o.allowedIDs[openID]
-	return ok
+	id, err := newID()
+	if err != nil {
+		return false, err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return false, err
+	}
+	return a.store.Bootstrap(ctx, record{User: User{ID: id, Name: "مدیر سامانه", Email: email, Role: "admin", Status: "active", CreatedAt: time.Now().UTC()}, PasswordHash: string(hash)})
 }
-
-func (o *OAuth) Register(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/v1/auth/start", o.start)
-	mux.HandleFunc("GET /api/v1/auth/callback", o.callback)
-	mux.HandleFunc("GET /api/v1/auth/session", o.session)
-	mux.Handle("POST /api/v1/auth/logout", o.RequireSameOrigin(http.HandlerFunc(o.logout)))
+func (a *Auth) Register(mux *http.ServeMux) {
+	mux.Handle("POST /api/v1/auth/register", a.RequireSameOrigin(http.HandlerFunc(a.register)))
+	mux.Handle("POST /api/v1/auth/login", a.RequireSameOrigin(http.HandlerFunc(a.login)))
+	mux.HandleFunc("GET /api/v1/auth/session", a.session)
+	mux.Handle("POST /api/v1/auth/logout", a.RequireSameOrigin(http.HandlerFunc(a.logout)))
+	mux.Handle("GET /api/v1/users", a.RequireSession(a.requireAdmin(http.HandlerFunc(a.listUsers))))
+	mux.Handle("POST /api/v1/users", a.RequireSameOrigin(a.RequireSession(a.requireAdmin(http.HandlerFunc(a.createUser)))))
+	mux.Handle("PATCH /api/v1/users/{id}", a.RequireSameOrigin(a.RequireSession(a.requireAdmin(http.HandlerFunc(a.updateUser)))))
 }
-
-func (o *OAuth) RequireSession(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !o.Configured() {
-			writeError(w, http.StatusServiceUnavailable, "احراز هویت در این محیط پیکربندی نشده است.")
-			return
-		}
-		cookie, err := r.Cookie(sessionCookieName)
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "برای ادامه وارد سامانه شوید.")
-			return
-		}
-		user, err := o.readSession(cookie.Value)
-		if err != nil {
-			writeError(w, http.StatusUnauthorized, "نشست معتبر نیست؛ دوباره وارد شوید.")
-			return
-		}
-		ctx := context.WithValue(r.Context(), userContextKey{}, user)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+func parseOrigin(value string) (string, error) {
+	u, err := url.Parse(value)
+	if err != nil || u.Opaque != "" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || (u.Scheme != "http" && u.Scheme != "https") || (u.Path != "" && u.Path != "/") {
+		return "", errors.New("invalid origin")
+	}
+	return u.Scheme + "://" + u.Host, nil
 }
-
-func (o *OAuth) RequireAllowedUser(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, ok := UserFromContext(r.Context())
-		if !ok {
-			writeError(w, http.StatusUnauthorized, "برای ادامه وارد سامانه شوید.")
-			return
-		}
-		if !o.OpenIDAllowed(user.OpenID) {
-			writeError(w, http.StatusForbidden, "این حساب کاربری برای دسترسی به داده‌های شرکت مجاز نشده است.")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (o *OAuth) RequireSameOrigin(next http.Handler) http.Handler {
+func (a *Auth) RequireSameOrigin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
 			next.ServeHTTP(w, r)
 			return
 		}
-		origin, originErr := parseOrigin(r.Header.Get("Origin"))
-		appOrigin, appOriginErr := parseOrigin(r.Header.Get("X-App-Origin"))
-		if originErr != nil || appOriginErr != nil || origin != appOrigin || (o.publicOrigin != "" && origin != o.publicOrigin) {
+		origin, err := parseOrigin(r.Header.Get("Origin"))
+		if err != nil || origin != a.publicOrigin {
 			writeError(w, http.StatusForbidden, "مبدأ درخواست معتبر نیست.")
+			return
+		}
+		if x := r.Header.Get("X-App-Origin"); x != "" {
+			v, e := parseOrigin(x)
+			if e != nil || v != a.publicOrigin {
+				writeError(w, http.StatusForbidden, "مبدأ درخواست معتبر نیست.")
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+func (a *Auth) CurrentUser(r *http.Request) (User, error) {
+	c, err := r.Cookie(sessionCookieName)
+	if err != nil {
+		return User{}, ErrNotFound
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(c.Value)
+	if err != nil || len(raw) != 32 || len(c.Value) != 43 {
+		return User{}, ErrNotFound
+	}
+	return a.store.Session(r.Context(), tokenHash(c.Value))
+}
+func (a *Auth) RequireSession(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, err := a.CurrentUser(r)
+		if err != nil {
+			if errors.Is(err, ErrNotFound) {
+				writeError(w, 401, "برای ادامه وارد سامانه شوید.")
+			} else {
+				writeError(w, 503, "بررسی نشست ممکن نشد.")
+			}
+			return
+		}
+		ctx := context.WithValue(r.Context(), userContextKey{}, u)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+func UserFromContext(ctx context.Context) (User, bool) {
+	u, ok := ctx.Value(userContextKey{}).(User)
+	return u, ok
+}
+func (a *Auth) requireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, ok := UserFromContext(r.Context())
+		if !ok || u.Role != "admin" || u.Status != "active" {
+			writeError(w, 403, "دسترسی مدیر لازم است.")
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
 }
-
-type userContextKey struct{}
-
-func UserFromContext(ctx context.Context) (User, bool) {
-	user, ok := ctx.Value(userContextKey{}).(User)
-	return user, ok
+func decode(w http.ResponseWriter, r *http.Request, v any) bool {
+	media, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || media != "application/json" {
+		writeError(w, 415, "درخواست باید JSON باشد.")
+		return false
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+	d := json.NewDecoder(r.Body)
+	d.DisallowUnknownFields()
+	if err = d.Decode(v); err != nil {
+		writeError(w, 400, "بدنهٔ درخواست معتبر نیست.")
+		return false
+	}
+	var extra any
+	if err = d.Decode(&extra); err != io.EOF {
+		writeError(w, 400, "بدنهٔ درخواست معتبر نیست.")
+		return false
+	}
+	return true
 }
-
-func (o *OAuth) CurrentUser(r *http.Request) (User, error) {
-	cookie, err := r.Cookie(sessionCookieName)
+func validName(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	if !utf8.ValidString(s) || len([]rune(s)) < 1 || len([]rune(s)) > 120 {
+		return "", false
+	}
+	for _, r := range s {
+		if unicode.IsControl(r) {
+			return "", false
+		}
+	}
+	return s, true
+}
+func validEmail(s string) (string, bool) {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if len(s) > 254 || len(s) < 3 || strings.ContainsAny(s, "\r\n\t ") {
+		return "", false
+	}
+	a, err := mail.ParseAddress(s)
+	if err != nil || a.Address != s || !strings.Contains(s, "@") {
+		return "", false
+	}
+	return s, true
+}
+func validPassword(s string) bool {
+	return utf8.ValidString(s) && len(s) >= 12 && len(s) <= 72 && !strings.ContainsRune(s, 0)
+}
+func validRole(s string) bool   { return s == "admin" || s == "user" }
+func validStatus(s string) bool { return s == "active" || s == "pending" || s == "disabled" }
+func (a *Auth) rate(w http.ResponseWriter, r *http.Request, kind, email string) bool {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		return User{}, errors.New("no session")
+		ip = r.RemoteAddr
 	}
-	return o.readSession(cookie.Value)
-}
-
-func (o *OAuth) start(w http.ResponseWriter, r *http.Request) {
-	if !o.Configured() {
-		writeError(w, http.StatusServiceUnavailable, "ورود با حساب Manus در این محیط هنوز پیکربندی نشده است.")
-		return
+	if ip == "" {
+		ip = "unknown"
 	}
-
-	origin, err := parseOrigin(r.Header.Get("X-App-Origin"))
-	requestOrigin, originErr := parseOrigin(r.Header.Get("Origin"))
-	if err != nil || originErr != nil || origin != requestOrigin {
-		writeError(w, http.StatusForbidden, "مبدأ درخواست ورود معتبر نیست.")
-		return
+	max := 100
+	if kind == "register" {
+		max = 20
 	}
-	if o.publicOrigin != "" && origin != o.publicOrigin {
-		writeError(w, http.StatusForbidden, "این نشانی برای ورود مجاز نیست.")
-		return
-	}
-
-	nonce, err := randomToken(32)
+	ok, err := a.store.Attempt(r.Context(), bucketHash(kind+":ip:"+ip), max, limitWindow)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "آغاز ورود ممکن نشد.")
-		return
+		writeError(w, 503, "بررسی محدودیت درخواست ممکن نشد.")
+		return false
 	}
-	redirectURI := origin + callbackPath
-	stateBytes, err := json.Marshal(oauthState{RedirectURI: redirectURI, Nonce: nonce})
+	if !ok {
+		w.Header().Set("Retry-After", "900")
+		writeError(w, 429, "تعداد تلاش‌ها بیش از حد مجاز است؛ بعداً تلاش کنید.")
+		return false
+	}
+	ok, err = a.store.Attempt(r.Context(), bucketHash(kind+":email:"+email), 10, limitWindow)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "آغاز ورود ممکن نشد.")
-		return
+		writeError(w, 503, "بررسی محدودیت درخواست ممکن نشد.")
+		return false
 	}
-	state := base64.RawURLEncoding.EncodeToString(stateBytes)
-	setCookie(w, stateCookieName, nonce, origin, 5*time.Minute, true)
-
-	portal, err := url.Parse(o.portalURL)
-	if err != nil || portal.Host == "" {
-		writeError(w, http.StatusServiceUnavailable, "نشانی سرویس ورود معتبر نیست.")
-		return
+	if !ok {
+		w.Header().Set("Retry-After", "900")
+		writeError(w, 429, "تعداد تلاش‌ها بیش از حد مجاز است؛ بعداً تلاش کنید.")
+		return false
 	}
-	portal.Path = strings.TrimRight(portal.Path, "/") + "/app-auth"
-	query := portal.Query()
-	query.Set("appId", o.projectID)
-	query.Set("redirectUri", redirectURI)
-	query.Set("state", state)
-	query.Set("responseType", "code")
-	portal.RawQuery = query.Encode()
-	writeJSON(w, http.StatusOK, map[string]string{"authorizationUrl": portal.String()})
+	return true
 }
 
-func (o *OAuth) callback(w http.ResponseWriter, r *http.Request) {
-	stateCookie, cookieErr := r.Cookie(stateCookieName)
-	stateValue := r.URL.Query().Get("state")
-	code := r.URL.Query().Get("code")
-	state, stateErr := decodeState(stateValue)
-	if cookieErr != nil || stateErr != nil || subtle.ConstantTimeCompare([]byte(state.Nonce), []byte(stateCookie.Value)) != 1 {
-		clearCookie(w, stateCookieName, "")
-		http.Error(w, "ورود کامل نشد؛ لطفاً دوباره تلاش کنید.", http.StatusBadRequest)
-		return
-	}
-	origin, err := originFromRedirectURI(state.RedirectURI)
-	if err != nil || !o.Configured() {
-		clearCookie(w, stateCookieName, "")
-		http.Error(w, "پیکربندی ورود کامل نیست.", http.StatusServiceUnavailable)
-		return
-	}
-	if o.requiresPublicOrigin() && origin != o.publicOrigin {
-		http.Error(w, "نشانی بازگشت ورود مجاز نیست.", http.StatusForbidden)
-		return
-	}
-	if o.publicOrigin != "" && origin != o.publicOrigin {
-		http.Error(w, "نشانی بازگشت ورود مجاز نیست.", http.StatusForbidden)
-		return
-	}
-	if providerError := r.URL.Query().Get("error"); providerError != "" {
-		clearCookie(w, stateCookieName, origin)
-		http.Redirect(w, r, origin+"/login?error=oauth", http.StatusSeeOther)
-		return
-	}
-	if code == "" {
-		clearCookie(w, stateCookieName, origin)
-		http.Error(w, "ورود کامل نشد؛ لطفاً دوباره تلاش کنید.", http.StatusBadRequest)
-		return
-	}
+type newUserInput struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     string `json:"role,omitempty"`
+	Status   string `json:"status,omitempty"`
+}
 
-	var exchanged tokenResponse
-	err = o.postJSON(r.Context(), "/webdev.v1.WebDevAuthPublicService/ExchangeToken", map[string]string{
-		"clientId":    o.projectID,
-		"grantType":   "authorization_code",
-		"code":        code,
-		"redirectUri": state.RedirectURI,
-	}, &exchanged)
-	if err != nil || exchanged.AccessToken == "" {
-		log.Printf("OAuth token exchange failed: %v", safeError(err))
-		clearCookie(w, stateCookieName, origin)
-		http.Redirect(w, r, origin+"/login?error=oauth", http.StatusSeeOther)
-		return
+func (a *Auth) makeRecord(in newUserInput) (record, error) {
+	name, ok := validName(in.Name)
+	if !ok {
+		return record{}, errors.New("name")
 	}
-
-	var profile userInfoResponse
-	err = o.postJSON(r.Context(), "/webdev.v1.WebDevAuthPublicService/GetUserInfo", map[string]string{
-		"accessToken": exchanged.AccessToken,
-	}, &profile)
-	if err != nil || profile.OpenID == "" {
-		log.Printf("OAuth identity lookup failed: %v", safeError(err))
-		clearCookie(w, stateCookieName, origin)
-		http.Redirect(w, r, origin+"/login?error=oauth", http.StatusSeeOther)
-		return
+	email, ok := validEmail(in.Email)
+	if !ok || !validPassword(in.Password) || !validRole(in.Role) || !validStatus(in.Status) {
+		return record{}, errors.New("invalid user")
 	}
-
-	session, err := o.signSession(profile.OpenID, 7*24*time.Hour)
+	id, err := newID()
 	if err != nil {
-		log.Printf("OAuth session creation failed: %v", err)
-		clearCookie(w, stateCookieName, origin)
-		http.Error(w, "ساخت نشست ورود ممکن نشد.", http.StatusInternalServerError)
+		return record{}, err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return record{}, err
+	}
+	return record{User: User{ID: id, Name: name, Email: email, Role: in.Role, Status: in.Status, CreatedAt: time.Now().UTC()}, PasswordHash: string(hash)}, nil
+}
+func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Name     string `json:"name"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if !decode(w, r, &in) {
 		return
 	}
-	setCookie(w, sessionCookieName, session, origin, 7*24*time.Hour, true)
-	clearCookie(w, stateCookieName, origin)
-	http.Redirect(w, r, origin+"/dashboard", http.StatusSeeOther)
-}
-
-func (o *OAuth) session(w http.ResponseWriter, r *http.Request) {
-	if !o.Configured() {
-		writeError(w, http.StatusServiceUnavailable, "احراز هویت در این محیط هنوز پیکربندی نشده است.")
+	email, ok := validEmail(in.Email)
+	if !ok || !validPassword(in.Password) {
+		writeError(w, 400, "ایمیل یا رمز عبور معتبر نیست؛ رمز باید ۱۲ تا ۷۲ بایت باشد.")
 		return
 	}
-	user, err := o.CurrentUser(r)
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, "نشست فعالی پیدا نشد.")
+	if _, ok = validName(in.Name); !ok {
+		writeError(w, 400, "نام معتبر نیست.")
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"authenticated": true,
-		"authorized":    o.OpenIDAllowed(user.OpenID),
-		"user":          map[string]string{"openId": user.OpenID},
-	})
-}
-
-func (o *OAuth) logout(w http.ResponseWriter, r *http.Request) {
-	origin := r.Header.Get("Origin")
-	if parsed, err := parseOrigin(origin); err == nil {
-		clearCookie(w, sessionCookieName, parsed)
-	} else {
-		clearCookie(w, sessionCookieName, "")
+	if !a.rate(w, r, "register", email) {
+		return
 	}
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
-}
-
-func (o *OAuth) postJSON(ctx context.Context, endpoint string, requestBody any, result any) error {
-	body, err := json.Marshal(requestBody)
+	rec, err := a.makeRecord(newUserInput{Name: in.Name, Email: email, Password: in.Password, Role: "user", Status: "pending"})
 	if err != nil {
-		return err
+		writeError(w, 500, "ثبت‌نام ممکن نشد.")
+		return
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, o.apiURL+endpoint, bytes.NewReader(body))
+	_, err = a.store.Create(r.Context(), rec, "")
 	if err != nil {
-		return err
+		storeError(w, err)
+		return
 	}
-	request.Header.Set("Content-Type", "application/json")
-	response, err := o.httpClient.Do(request)
+	writeJSON(w, 201, map[string]string{"message": "حساب ایجاد شد و در انتظار تأیید مدیر است.", "status": "pending"})
+}
+func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	email, ok := validEmail(in.Email)
+	if !ok || len(in.Password) == 0 || len(in.Password) > 72 {
+		writeError(w, 400, "ایمیل یا رمز عبور معتبر نیست.")
+		return
+	}
+	if !a.rate(w, r, "login", email) {
+		return
+	}
+	u, err := a.store.ByEmail(r.Context(), email)
+	if err != nil && !errors.Is(err, ErrNotFound) {
+		writeError(w, 503, "ورود موقتاً ممکن نیست.")
+		return
+	}
+	hash := a.dummyHash
+	if err == nil {
+		hash = []byte(u.PasswordHash)
+	}
+	check := bcrypt.CompareHashAndPassword(hash, []byte(in.Password))
+	if err != nil || check != nil {
+		writeError(w, 401, "ایمیل یا رمز عبور نادرست است.")
+		return
+	}
+	if u.Status == "pending" {
+		writeJSON(w, 403, map[string]string{"code": "pending", "error": "حساب در انتظار تأیید مدیر است."})
+		return
+	}
+	if u.Status != "active" {
+		writeJSON(w, 403, map[string]string{"code": "disabled", "error": "حساب غیرفعال است."})
+		return
+	}
+	b := make([]byte, 32)
+	if _, err = rand.Read(b); err != nil {
+		writeError(w, 500, "ساخت نشست ممکن نشد.")
+		return
+	}
+	token := base64.RawURLEncoding.EncodeToString(b)
+	expiry := time.Now().UTC().Add(sessionLifetime)
+	if err = a.store.NewSession(r.Context(), u.ID, u.PasswordHash, tokenHash(token), expiry); err != nil {
+		if errors.Is(err, ErrStale) {
+			writeError(w, 401, "حساب تغییر کرده است؛ دوباره وارد شوید.")
+		} else {
+			writeError(w, 503, "ساخت نشست ممکن نشد.")
+		}
+		return
+	}
+	if old, e := r.Cookie(sessionCookieName); e == nil && old.Value != token {
+		if err = a.store.DeleteSession(r.Context(), tokenHash(old.Value)); err != nil {
+			_ = a.store.DeleteSession(r.Context(), tokenHash(token))
+			writeError(w, 503, "ساخت نشست ممکن نشد.")
+			return
+		}
+	}
+	a.setCookie(w, token, expiry)
+	writeSession(w, u.User)
+}
+func (a *Auth) session(w http.ResponseWriter, r *http.Request) {
+	u, err := a.CurrentUser(r)
 	if err != nil {
-		return err
+		if errors.Is(err, ErrNotFound) {
+			writeError(w, 401, "نشست فعالی پیدا نشد.")
+		} else {
+			writeError(w, 503, "بررسی نشست ممکن نشد.")
+		}
+		return
 	}
-	defer response.Body.Close()
-	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("OAuth provider returned HTTP %d", response.StatusCode)
+	writeSession(w, u)
+}
+func writeSession(w http.ResponseWriter, u User) {
+	writeJSON(w, 200, map[string]any{"authenticated": true, "authorized": true, "user": map[string]string{"id": u.ID, "name": u.Name, "email": u.Email, "role": u.Role, "status": u.Status}})
+}
+func (a *Auth) setCookie(w http.ResponseWriter, value string, expiry time.Time) {
+	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: value, Path: "/", HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteStrictMode, MaxAge: int(sessionLifetime.Seconds()), Expires: expiry})
+}
+func (a *Auth) logout(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie(sessionCookieName); err == nil {
+		if err = a.store.DeleteSession(r.Context(), tokenHash(c.Value)); err != nil {
+			writeError(w, 503, "خروج ممکن نشد.")
+			return
+		}
 	}
-	limited := io.LimitReader(response.Body, 1<<20)
-	return json.NewDecoder(limited).Decode(result)
+	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: "", Path: "/", HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteStrictMode, MaxAge: -1, Expires: time.Unix(0, 0)})
+	writeJSON(w, 200, map[string]bool{"ok": true})
 }
-
-func parseOrigin(value string) (string, error) {
-	parsed, err := url.Parse(strings.TrimSpace(value))
-	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Scheme != "https" && parsed.Scheme != "http") || (parsed.Path != "" && parsed.Path != "/") {
-		return "", errors.New("invalid origin")
-	}
-	return parsed.Scheme + "://" + parsed.Host, nil
-}
-
-func (o *OAuth) requiresPublicOrigin() bool {
-	return strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") || os.Getenv("VERCEL") == "1"
-}
-
-func originFromRedirectURI(value string) (string, error) {
-	parsed, err := url.Parse(value)
-	if err != nil || parsed.Path != callbackPath || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return "", errors.New("invalid callback URI")
-	}
-	return parseOrigin(parsed.Scheme + "://" + parsed.Host)
-}
-
-func decodeState(value string) (oauthState, error) {
-	var state oauthState
-	data, err := base64.RawURLEncoding.DecodeString(value)
+func (a *Auth) listUsers(w http.ResponseWriter, r *http.Request) {
+	items, err := a.store.List(r.Context())
 	if err != nil {
-		return state, err
+		writeError(w, 503, "دریافت کاربران ممکن نشد.")
+		return
 	}
-	err = json.Unmarshal(data, &state)
-	if err != nil || state.Nonce == "" {
-		return state, errors.New("invalid OAuth state")
-	}
-	return state, nil
+	writeJSON(w, 200, map[string]any{"items": items})
 }
-
-func randomToken(byteCount int) (string, error) {
-	value := make([]byte, byteCount)
-	if _, err := rand.Read(value); err != nil {
-		return "", err
+func (a *Auth) createUser(w http.ResponseWriter, r *http.Request) {
+	var in newUserInput
+	if !decode(w, r, &in) {
+		return
 	}
-	return base64.RawURLEncoding.EncodeToString(value), nil
-}
-
-func setCookie(w http.ResponseWriter, name, value, origin string, lifetime time.Duration, httpOnly bool) {
-	secure := strings.HasPrefix(origin, "https://")
-	sameSite := http.SameSiteLaxMode
-	if secure {
-		sameSite = http.SameSiteNoneMode
+	if _, ok := validName(in.Name); !ok {
+		writeError(w, 400, "نام معتبر نیست.")
+		return
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     name,
-		Value:    value,
-		Path:     "/",
-		HttpOnly: httpOnly,
-		Secure:   secure,
-		SameSite: sameSite,
-		MaxAge:   int(lifetime.Seconds()),
-		Expires:  time.Now().Add(lifetime),
-	})
-}
-
-func clearCookie(w http.ResponseWriter, name, origin string) {
-	secure := strings.HasPrefix(origin, "https://")
-	sameSite := http.SameSiteLaxMode
-	if secure {
-		sameSite = http.SameSiteNoneMode
+	if _, ok := validEmail(in.Email); !ok || !validPassword(in.Password) || !validRole(in.Role) || !validStatus(in.Status) {
+		writeError(w, 400, "ورودی کاربر معتبر نیست؛ رمز باید ۱۲ تا ۷۲ بایت باشد.")
+		return
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name: name, Value: "", Path: "/", HttpOnly: true,
-		Secure: secure, SameSite: sameSite, MaxAge: -1, Expires: time.Unix(0, 0),
-	})
+	rec, err := a.makeRecord(in)
+	if err != nil {
+		writeError(w, 500, "ساخت کاربر ممکن نشد.")
+		return
+	}
+	actor, _ := UserFromContext(r.Context())
+	u, err := a.store.Create(r.Context(), rec, actor.ID)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	writeJSON(w, 201, u)
 }
-
+func (a *Auth) updateUser(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Name     *string `json:"name"`
+		Role     *string `json:"role"`
+		Status   *string `json:"status"`
+		Password *string `json:"password"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	if in.Name == nil && in.Role == nil && in.Status == nil && in.Password == nil {
+		writeError(w, 400, "حداقل یک تغییر لازم است.")
+		return
+	}
+	if in.Name != nil {
+		n, ok := validName(*in.Name)
+		if !ok {
+			writeError(w, 400, "نام معتبر نیست.")
+			return
+		}
+		in.Name = &n
+	}
+	if (in.Role != nil && !validRole(*in.Role)) || (in.Status != nil && !validStatus(*in.Status)) || (in.Password != nil && !validPassword(*in.Password)) {
+		writeError(w, 400, "ورودی کاربر معتبر نیست؛ رمز باید ۱۲ تا ۷۲ بایت باشد.")
+		return
+	}
+	c := changes{Name: in.Name, Role: in.Role, Status: in.Status}
+	if in.Password != nil {
+		h, err := bcrypt.GenerateFromPassword([]byte(*in.Password), bcrypt.DefaultCost)
+		if err != nil {
+			writeError(w, 500, "تغییر رمز ممکن نشد.")
+			return
+		}
+		v := string(h)
+		c.PasswordHash = &v
+	}
+	actor, _ := UserFromContext(r.Context())
+	u, err := a.store.Update(r.Context(), actor.ID, r.PathValue("id"), c)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	writeJSON(w, 200, u)
+}
+func storeError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrConflict):
+		writeError(w, 409, "این ایمیل قبلاً ثبت شده است.")
+	case errors.Is(err, ErrLastAdmin):
+		writeError(w, 409, "حداقل یک مدیر فعال باید باقی بماند.")
+	case errors.Is(err, ErrNotFound):
+		writeError(w, 404, "کاربر پیدا نشد.")
+	case errors.Is(err, ErrForbidden):
+		writeError(w, 403, "دسترسی مدیر لازم است.")
+	default:
+		writeError(w, 503, "عملیات موقتاً ممکن نیست.")
+	}
+}
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
-
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
-}
-
-func safeError(err error) any {
-	if err == nil {
-		return "missing provider response"
-	}
-	return err
 }

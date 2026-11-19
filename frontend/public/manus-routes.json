@@ -1,7 +1,8 @@
 {
   "routes": [
     { "path": "/", "title": "معرفی مجموعه" },
-    { "path": "/login", "title": "ورود" },
-    { "path": "/dashboard", "title": "پروژه‌ها" }
+    { "path": "/login", "title": "ورود و ثبت‌نام" },
+    { "path": "/dashboard", "title": "پروژه‌ها" },
+    { "path": "/dashboard/users", "title": "مدیریت کاربران" }
   ]
 }
