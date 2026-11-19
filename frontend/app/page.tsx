@@ -16,7 +16,7 @@ const asset = {
 };
 
 const serviceVisuals = [
-  { image: asset.hero, Icon: PackageCheck, tone: "bg-amber-soft text-forest" },
+  { image: asset.sorting, Icon: PackageCheck, tone: "bg-amber-soft text-forest" },
   { image: asset.cold, Icon: Warehouse, tone: "bg-sage text-forest" },
   { image: asset.sorting, Icon: Boxes, tone: "bg-[#edf1e5] text-forest" },
   { image: asset.construction, Icon: Building2, tone: "bg-[#f0ebe3] text-forest" },
