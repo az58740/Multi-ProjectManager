@@ -303,23 +303,8 @@ export function ProjectDashboard() {
             </div>
           </div>
 
-          <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-            {[
-              [t.summaryTotal, counts.total, "bg-paper"],
-              [t.summaryActive, counts.active, "bg-sage"],
-              [t.summaryPlanning, counts.planning, "bg-amber-soft"],
-              [t.summaryPaused, counts.paused, "bg-paper"],
-              [t.summaryCompleted, counts.completed, "bg-paper"],
-            ].map(([label, count, color]) => (
-              <div key={label} className={`rounded-2xl border border-line ${color} px-4 py-4`}>
-                <p className="mb-1 mt-0 text-xs font-semibold leading-5 text-muted">{label}</p>
-                <p className="m-0 text-2xl font-black text-forest">{Number(count).toLocaleString(isFa ? "fa-IR" : "en-US")}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
-            <div className="flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70">
+          <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
+            <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
               <label htmlFor="project-search" className="sr-only">{t.projectSearch}</label>
               <input id="project-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.projectSearchPlaceholder} className="min-w-0 flex-1 border-0 bg-transparent text-sm text-ink outline-none placeholder:text-muted" />
@@ -382,6 +367,29 @@ export function ProjectDashboard() {
           )}
         </section>
       </div>
+
+      <footer className="border-t border-line bg-paper">
+        <div className="mx-auto max-w-[1440px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="m-0 text-sm font-black text-forest">{t.dashboardKicker}</h2>
+            <span className="text-xs font-semibold text-muted">{t.projectCount}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            {[
+              [t.summaryTotal, counts.total, "bg-cream"],
+              [t.summaryActive, counts.active, "bg-sage"],
+              [t.summaryPlanning, counts.planning, "bg-amber-soft"],
+              [t.summaryPaused, counts.paused, "bg-cream"],
+              [t.summaryCompleted, counts.completed, "bg-cream"],
+            ].map(([label, count, color]) => (
+              <div key={label} className={`rounded-2xl border border-line ${color} px-4 py-4`}>
+                <p className="mb-1 mt-0 text-xs font-semibold leading-5 text-muted">{label}</p>
+                <p className="m-0 text-2xl font-black text-forest">{Number(count).toLocaleString(isFa ? "fa-IR" : "en-US")}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </footer>
 
       {modalMode && (
         <ProjectModal title={modalTitle} onClose={closeModal}>
