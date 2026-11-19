@@ -7,7 +7,7 @@ COPY internal ./internal
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 
 FROM alpine:3.22
-RUN addgroup -S app && adduser -S -G app app
+RUN apk add --no-cache ca-certificates && addgroup -S app && adduser -S -G app app
 WORKDIR /app
 COPY --from=build /out/api /usr/local/bin/api
 ENV APP_ENV=production PORT=8080

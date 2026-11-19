@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
+	"github.com/az58740/multi-project-manager/backend/internal/dbconfig"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,12 +15,9 @@ import (
 type PostgresStore struct{ pool *pgxpool.Pool }
 
 func NewPostgresStore(ctx context.Context, databaseURL string) (*PostgresStore, error) {
-	cfg, err := pgxpool.ParseConfig(databaseURL)
+	cfg, err := dbconfig.ParsePoolConfig(databaseURL)
 	if err != nil {
 		return nil, err
-	}
-	if p, ok := os.LookupEnv("PGPASSWORD"); ok {
-		cfg.ConnConfig.Password = p
 	}
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

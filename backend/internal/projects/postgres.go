@@ -5,10 +5,10 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"os"
 	"sort"
 	"time"
 
+	"github.com/az58740/multi-project-manager/backend/internal/dbconfig"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -41,14 +41,7 @@ func NewPostgresStore(ctx context.Context, databaseURL string) (*PostgresStore, 
 }
 
 func parsePoolConfig(databaseURL string) (*pgxpool.Config, error) {
-	config, err := pgxpool.ParseConfig(databaseURL)
-	if err != nil {
-		return nil, err
-	}
-	if password, ok := os.LookupEnv("PGPASSWORD"); ok {
-		config.ConnConfig.Password = password
-	}
-	return config, nil
+	return dbconfig.ParsePoolConfig(databaseURL)
 }
 
 func applyMigrations(ctx context.Context, pool *pgxpool.Pool) error {
