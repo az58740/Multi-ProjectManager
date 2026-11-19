@@ -9,6 +9,7 @@ import { SiteFooter } from "@/components/site-footer";
 
 const asset = {
   hero: "/images/produce-market.webp",
+  exportProduce: "/images/export-produce-new.webp",
   cold: "/images/cold-storage.webp",
   sorting: "/images/fruit-sorting.webp",
   construction: "/images/construction-site.webp",
@@ -16,7 +17,7 @@ const asset = {
 };
 
 const serviceVisuals = [
-  { image: asset.sorting, Icon: PackageCheck, tone: "bg-amber-soft text-forest" },
+  { image: asset.exportProduce, Icon: PackageCheck, tone: "bg-amber-soft text-forest" },
   { image: asset.cold, Icon: Warehouse, tone: "bg-sage text-forest" },
   { image: asset.sorting, Icon: Boxes, tone: "bg-[#edf1e5] text-forest" },
   { image: asset.construction, Icon: Building2, tone: "bg-[#f0ebe3] text-forest" },
