@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@theme {
+  --color-forest: #173f34;
+  --color-forest-light: #245747;
+  --color-sage: #e7efe7;
+  --color-sage-dark: #cbdccd;
+  --color-cream: #f7f7f1;
+  --color-paper: #fffefa;
+  --color-ink: #1b2823;
+  --color-muted: #657168;
+  --color-amber: #94600f;
+  --color-amber-light: #f2c56b;
+  --color-amber-bright: #f7d486;
+  --color-amber-soft: #f5eddc;
+  --color-line: #e5e8df;
+  --font-sans: "Vazirmatn Variable", "Tahoma", "Segoe UI", sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  background: #f7f7f1;
+  color: #1b2823;
+  font-family: "Vazirmatn Variable", Tahoma, "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-height: 100vh; }
+button, input, select { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+::selection { background: #dce8dc; color: #173f34; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,7 @@
+packages:
+  - frontend
+
+allowBuilds:
+  "@tailwindcss/oxide": true
+  next: true
+  sharp: true

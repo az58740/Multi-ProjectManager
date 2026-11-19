@@ -1,0 +1,15 @@
+{
+  "name": "multi-project-manager",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "concurrently -k -s first -n API,WEB -c green,cyan \"cd backend && go run ./cmd/api\" \"pnpm --filter @mpm/frontend dev\"",
+    "dev:web": "pnpm --filter @mpm/frontend dev",
+    "build:web": "pnpm --filter @mpm/frontend build",
+    "typecheck": "pnpm --filter @mpm/frontend typecheck",
+    "test:api": "cd backend && go test ./..."
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "routes": [
+    { "path": "/", "title": "معرفی مجموعه" },
+    { "path": "/login", "title": "ورود" },
+    { "path": "/dashboard", "title": "پروژه‌ها" }
+  ]
+}

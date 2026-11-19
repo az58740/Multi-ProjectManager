@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: multi_project_manager
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d multi_project_manager"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      PORT: "8080"
+      DATABASE_URL: postgres://app@db:5432/multi_project_manager?sslmode=disable
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      MANUS_PROJECT_ID: ${MANUS_PROJECT_ID:-}
+      MANUS_OAUTH_PORTAL_URL: ${MANUS_OAUTH_PORTAL_URL:-}
+      MANUS_OAUTH_API_URL: ${MANUS_OAUTH_API_URL:-}
+      MANUS_JWT_SECRET: ${MANUS_JWT_SECRET:-}
+      APP_ALLOWED_OPEN_IDS: ${APP_ALLOWED_OPEN_IDS:-}
+      PUBLIC_APP_ORIGIN: ${PUBLIC_APP_ORIGIN:-}
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/_health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        API_UPSTREAM: http://api:8080
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
