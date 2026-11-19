@@ -63,10 +63,10 @@ export function ProjectModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-[#10231d]/55 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex min-h-full items-center justify-center overflow-y-auto bg-[#10231d]/55 p-2 backdrop-blur-sm sm:p-4"
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
-      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="project-modal-title" className="my-6 w-full max-w-3xl rounded-[28px] border border-line bg-paper p-5 shadow-2xl outline-none sm:p-7">
+      <section ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="project-modal-title" className="my-auto max-h-[calc(100dvh-1rem)] w-full max-w-3xl overflow-y-auto rounded-[28px] border border-line bg-paper p-4 shadow-2xl outline-none sm:max-h-[calc(100dvh-2rem)] sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-4 border-b border-line pb-4">
           <h2 id="project-modal-title" className="m-0 text-xl font-black text-forest">{title}</h2>
           <button type="button" onClick={onClose} className="grid size-10 shrink-0 place-items-center rounded-full border border-line text-muted transition hover:bg-cream" aria-label={t.closeDialog}>
