@@ -16,7 +16,7 @@ import (
 const origin = "https://app.example.test"
 const adminEmail = "admin@example.test"
 const adminPassword = "admin-password-very-safe"
-const userPassword = "member-password-safe"
+const userPassword = "1234"
 
 func setup(t *testing.T) (*Auth, *http.ServeMux) {
 	t.Helper()
@@ -80,14 +80,12 @@ func TestSecurityFlows(t *testing.T) {
 	mustStatus(t, req(m, "POST", "/api/v1/auth/register", `{"name":"X","email":"x@example.test","password":"member-password-safe","role":"admin"}`, nil, origin), 400)
 	w := req(m, "POST", "/api/v1/auth/register", registration, nil, origin)
 	mustStatus(t, w, 201)
-	if len(w.Result().Cookies()) != 0 || !strings.Contains(w.Body.String(), `"pending"`) {
-		t.Fatal("registration must not create a session")
+	mustStatus(t, req(m, "POST", "/api/v1/auth/register", registration, nil, origin), 409)
+	if len(w.Result().Cookies()) != 0 || !strings.Contains(w.Body.String(), `"active"`) {
+		t.Fatal("registration should create an active account without a session")
 	}
 	w = req(m, "POST", "/api/v1/auth/login", `{"email":"member@example.test","password":"`+userPassword+`"}`, nil, origin)
-	mustStatus(t, w, 403)
-	if !strings.Contains(w.Body.String(), `"code":"pending"`) {
-		t.Fatal(w.Body.String())
-	}
+	mustStatus(t, w, 200)
 	mustStatus(t, req(m, "GET", "/api/v1/projects", "", nil, ""), 401)
 	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", nil, ""), 401)
 	mustStatus(t, req(m, "POST", "/api/v1/auth/login", `{"email":"admin@example.test","password":"wrong"}`, nil, origin), 401)
@@ -107,7 +105,7 @@ func TestSecurityFlows(t *testing.T) {
 	for _, u := range list.Items {
 		if u.Email == "member@example.test" {
 			member = u.ID
-			if u.Role != "user" || u.Status != "pending" {
+			if u.Role != "user" || u.Status != "active" {
 				t.Fatal(u)
 			}
 		} else {
@@ -116,8 +114,6 @@ func TestSecurityFlows(t *testing.T) {
 	}
 	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+adminID, `{"role":"user"}`, admin, origin), 409)
 	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+adminID, `{"status":"disabled"}`, admin, origin), 409)
-	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+member, `{"status":"active"}`, admin, ""), 403)
-	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+member, `{"status":"active"}`, admin, origin), 200)
 	user := loginAs(t, m, "member@example.test", userPassword)
 	mustStatus(t, req(m, "GET", "/api/v1/projects", "", user, ""), 204)
 	mustStatus(t, req(m, "POST", "/api/v1/projects", "{}", user, "https://evil.example"), 403)
@@ -134,13 +130,13 @@ func TestSecurityFlows(t *testing.T) {
 func TestCreateUpdateAndRevocation(t *testing.T) {
 	_, m := setup(t)
 	admin := loginAs(t, m, adminEmail, adminPassword)
-	w := req(m, "POST", "/api/v1/users", `{"name":"Second","email":"second@example.test","password":"member-password-safe","role":"admin","status":"active"}`, admin, origin)
+	w := req(m, "POST", "/api/v1/users", `{"name":"Second","email":"second@example.test","password":"1234","role":"admin","status":"active"}`, admin, origin)
 	mustStatus(t, w, 201)
 	id := userID(t, w)
 	second := loginAs(t, m, "second@example.test", userPassword)
 	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+id, `{"password":"replacement-password-safe"}`, admin, origin), 200)
 	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", second, ""), 401)
-	mustStatus(t, req(m, "POST", "/api/v1/auth/login", `{"email":"second@example.test","password":"member-password-safe"}`, nil, origin), 401)
+	mustStatus(t, req(m, "POST", "/api/v1/auth/login", `{"email":"second@example.test","password":"1234"}`, nil, origin), 401)
 	second = loginAs(t, m, "second@example.test", "replacement-password-safe")
 	mustStatus(t, req(m, "PATCH", "/api/v1/users/"+id, `{"role":"user"}`, admin, origin), 200)
 	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", second, ""), 401)

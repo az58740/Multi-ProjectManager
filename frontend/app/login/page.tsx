@@ -68,7 +68,7 @@ export default function LoginPage() {
       }
       if (signUp) {
         const result = await response.json() as { status?: string };
-        if (response.status !== 201 || result.status !== "pending") { setError(m.serviceError); return; }
+        if (response.status !== 201 || result.status !== "active") { setError(m.serviceError); return; }
         form.reset();
         setSignUp(false);
         setNotice(true);

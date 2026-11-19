@@ -27,7 +27,7 @@ export function isUserStatus(value: unknown): value is UserStatus {
 }
 export function isValidNewPassword(value: string): boolean {
   const byteLength = new TextEncoder().encode(value).length;
-  return byteLength >= 12 && byteLength <= 72 && !value.includes("\0");
+  return byteLength >= 4 && byteLength <= 72 && !value.includes("\0");
 }
 export function isUserList(value: unknown): value is { items: AccountUser[] } {
   if (!value || typeof value !== "object" || !("items" in value) || !Array.isArray(value.items)) return false;

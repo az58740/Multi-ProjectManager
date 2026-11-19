@@ -4,6 +4,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(process.cwd(), ".."),
+  // Vercel's multiservice routing does not expose Next's image optimizer route;
+  // serve the committed public images directly instead.
+  images: { unoptimized: true },
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   async rewrites() {
     if (process.env.VERCEL) return [];

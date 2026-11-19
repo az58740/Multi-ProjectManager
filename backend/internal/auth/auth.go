@@ -193,7 +193,7 @@ func validEmail(s string) (string, bool) {
 	return s, true
 }
 func validPassword(s string) bool {
-	return utf8.ValidString(s) && len(s) >= 12 && len(s) <= 72 && !strings.ContainsRune(s, 0)
+	return utf8.ValidString(s) && len(s) >= 4 && len(s) <= 72 && !strings.ContainsRune(s, 0)
 }
 func validRole(s string) bool   { return s == "admin" || s == "user" }
 func validStatus(s string) bool { return s == "active" || s == "pending" || s == "disabled" }
@@ -270,7 +270,7 @@ func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
 	}
 	email, ok := validEmail(in.Email)
 	if !ok || !validPassword(in.Password) {
-		writeError(w, 400, "ایمیل یا رمز عبور معتبر نیست؛ رمز باید ۱۲ تا ۷۲ بایت باشد.")
+		writeError(w, 400, "ایمیل یا رمز عبور معتبر نیست؛ رمز باید ۴ تا ۷۲ بایت باشد.")
 		return
 	}
 	if _, ok = validName(in.Name); !ok {
@@ -280,7 +280,7 @@ func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
 	if !a.rate(w, r, "register", email) {
 		return
 	}
-	rec, err := a.makeRecord(newUserInput{Name: in.Name, Email: email, Password: in.Password, Role: "user", Status: "pending"})
+	rec, err := a.makeRecord(newUserInput{Name: in.Name, Email: email, Password: in.Password, Role: "user", Status: "active"})
 	if err != nil {
 		writeError(w, 500, "ثبت‌نام ممکن نشد.")
 		return
@@ -290,7 +290,7 @@ func (a *Auth) register(w http.ResponseWriter, r *http.Request) {
 		storeError(w, err)
 		return
 	}
-	writeJSON(w, 201, map[string]string{"message": "حساب ایجاد شد و در انتظار تأیید مدیر است.", "status": "pending"})
+	writeJSON(w, 201, map[string]string{"message": "حساب با موفقیت ایجاد شد؛ اکنون می‌توانید وارد شوید.", "status": "active"})
 }
 func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 	var in struct {
@@ -401,7 +401,7 @@ func (a *Auth) createUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, ok := validEmail(in.Email); !ok || !validPassword(in.Password) || !validRole(in.Role) || !validStatus(in.Status) {
-		writeError(w, 400, "ورودی کاربر معتبر نیست؛ رمز باید ۱۲ تا ۷۲ بایت باشد.")
+		writeError(w, 400, "ورودی کاربر معتبر نیست؛ رمز باید ۴ تا ۷۲ بایت باشد.")
 		return
 	}
 	rec, err := a.makeRecord(in)
@@ -440,7 +440,7 @@ func (a *Auth) updateUser(w http.ResponseWriter, r *http.Request) {
 		in.Name = &n
 	}
 	if (in.Role != nil && !validRole(*in.Role)) || (in.Status != nil && !validStatus(*in.Status)) || (in.Password != nil && !validPassword(*in.Password)) {
-		writeError(w, 400, "ورودی کاربر معتبر نیست؛ رمز باید ۱۲ تا ۷۲ بایت باشد.")
+		writeError(w, 400, "ورودی کاربر معتبر نیست؛ رمز باید ۴ تا ۷۲ بایت باشد.")
 		return
 	}
 	c := changes{Name: in.Name, Role: in.Role, Status: in.Status}
