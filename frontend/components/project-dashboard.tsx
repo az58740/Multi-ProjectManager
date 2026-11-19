@@ -133,7 +133,7 @@ export function ProjectDashboard() {
         headers: jsonHeaders(),
       }, 4_000);
       if (!response.ok) throw new Error("logout failed");
-      router.push("/login");
+      router.replace("/");
     } catch {
       setLogoutError(true);
     }
