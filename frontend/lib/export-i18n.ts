@@ -17,7 +17,7 @@ export const exportMessages = {
     counterpartySaveError: "ثبت تأیید نشد. پیش از ارسال دوباره، فهرست طرف‌حساب‌ها را بررسی کنید تا مورد تکراری ایجاد نشود.", shipmentSaveError: "ثبت تأیید نشد. پیش از ارسال دوباره، فهرست محموله‌ها را بررسی کنید تا مورد تکراری ایجاد نشود.", projectSaveError: "ذخیرهٔ پروژه ممکن نشد. اطلاعات و اتصال را بررسی کنید.",
     counterpartySaved: "طرف‌حساب ثبت شد.", shipmentSaved: "محموله ثبت شد.", projectSaved: "تغییرات پروژه ذخیره شد.",
     requiredName: "نام طرف‌حساب را وارد کنید.", requiredRole: "حداقل یک نقش انتخاب کنید.", requiredReference: "مرجع محموله را وارد کنید.", requiredSupplier: "یک تأمین‌کننده انتخاب کنید.", invalidPallets: "تعداد پالت باید یک عدد صحیح مثبت باشد.", invalidWeight: "وزن باید یک عدد اعشاری مثبت باشد.", requiredDestination: "مقصد محموله را وارد کنید.",
-    financialTitle: "امکانات مالی هنوز فعال نیست", financialDescription: "ثبت تراکنش و دفترکل در این بخش در دسترس نیست.", currencyNote: "این موارد فقط تنظیمات پیش‌فرض پروژه هستند؛ این فرم هیچ سند مالی ثبت نمی‌کند.",
+    financialTitle: "دفترکل و عملیات مالی", financialDescription: "فهرست حساب‌ها و ثبت سند دستی در workspace دفترکل پایین صفحه در دسترس است.", currencyNote: "این موارد فقط تنظیمات پیش‌فرض پروژه هستند؛ این فرم هیچ سند مالی ثبت نمی‌کند.",
     projectStatus: { planning: "در برنامه‌ریزی", active: "در جریان", paused: "متوقف", completed: "تکمیل‌شده" },
   },
   en: {
@@ -38,7 +38,7 @@ export const exportMessages = {
     counterpartySaveError: "The save could not be confirmed. Check the counterparty list before retrying to avoid a duplicate.", shipmentSaveError: "The save could not be confirmed. Check the shipment list before retrying to avoid a duplicate.", projectSaveError: "Could not save the project. Check the details and connection.",
     counterpartySaved: "Counterparty saved.", shipmentSaved: "Shipment saved.", projectSaved: "Project changes saved.",
     requiredName: "Enter a counterparty name.", requiredRole: "Select at least one role.", requiredReference: "Enter a shipment reference.", requiredSupplier: "Select a supplier.", invalidPallets: "Pallet count must be a positive whole number.", invalidWeight: "Weight must be a positive decimal number.", requiredDestination: "Enter a shipment destination.",
-    financialTitle: "Financial features are not available yet", financialDescription: "Transaction entry and the ledger are not available in this workspace.", currencyNote: "These are project defaults only; this form does not create financial records.",
+    financialTitle: "Ledger and financial activity", financialDescription: "The account list and manual journal entry form are available in the ledger workspace below.", currencyNote: "These are project defaults only; this form does not create financial records.",
     projectStatus: { planning: "Planning", active: "In progress", paused: "Paused", completed: "Completed" },
   },
 } as const;
