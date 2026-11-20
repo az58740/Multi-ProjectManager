@@ -1,0 +1,145 @@
+package ledger
+
+import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
+	"math/big"
+	"regexp"
+	"strings"
+	"time"
+)
+
+var (
+	ErrInvalidInput    = errors.New("invalid ledger input")
+	ErrConflict        = errors.New("ledger idempotency conflict")
+	ErrAccountNotFound = errors.New("ledger account not found")
+)
+
+type AccountInput struct {
+	Scope       string `json:"scope"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	AccountType string `json:"accountType"`
+	Currency    string `json:"currency"`
+}
+type Account struct {
+	ID          string    `json:"id"`
+	Scope       string    `json:"scope"`
+	ProjectID   string    `json:"projectId"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	AccountType string    `json:"accountType"`
+	Currency    string    `json:"currency"`
+	IsActive    bool      `json:"isActive"`
+	CreatedAt   time.Time `json:"createdAt"`
+}
+type LineInput struct {
+	AccountID        string `json:"accountId"`
+	Currency         string `json:"currency"`
+	DebitAmount      string `json:"debitAmount"`
+	CreditAmount     string `json:"creditAmount"`
+	FunctionalDebit  string `json:"functionalDebit"`
+	FunctionalCredit string `json:"functionalCredit"`
+	ExchangeRate     string `json:"exchangeRate"`
+	Memo             string `json:"memo"`
+}
+type EntryInput struct {
+	EntryDate      string      `json:"entryDate"`
+	Description    string      `json:"description"`
+	IdempotencyKey string      `json:"idempotencyKey"`
+	Lines          []LineInput `json:"lines"`
+}
+type JournalLine struct {
+	ID               string `json:"id"`
+	AccountID        string `json:"accountId"`
+	Currency         string `json:"currency"`
+	DebitAmount      string `json:"debitAmount"`
+	CreditAmount     string `json:"creditAmount"`
+	FunctionalDebit  string `json:"functionalDebit"`
+	FunctionalCredit string `json:"functionalCredit"`
+	ExchangeRate     string `json:"exchangeRate"`
+	Memo             string `json:"memo"`
+}
+type JournalEntry struct {
+	ID, ProjectID, EntryDate, Description, IdempotencyKey string
+	CreatedBy                                             string        `json:"createdBy,omitempty"`
+	CreatedAt                                             time.Time     `json:"createdAt"`
+	Lines                                                 []JournalLine `json:"lines"`
+}
+
+type Store interface {
+	ListAccounts(context.Context, string) ([]Account, error)
+	CreateAccount(context.Context, string, AccountInput) (Account, error)
+	ListEntries(context.Context, string) ([]JournalEntry, error)
+	CreateEntry(context.Context, string, string, EntryInput) (JournalEntry, error)
+}
+
+var decimalPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)(\.[0-9]+)?$`)
+
+func decimal(value string, positive bool) (string, *big.Rat, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" && !positive {
+		value = "0"
+	}
+	if !decimalPattern.MatchString(value) {
+		return "", nil, false
+	}
+	r, ok := new(big.Rat).SetString(value)
+	if !ok || (positive && r.Sign() <= 0) || (!positive && r.Sign() < 0) {
+		return "", nil, false
+	}
+	return value, r, true
+}
+func currency(v string) bool {
+	if len(v) != 3 {
+		return false
+	}
+	for _, c := range v {
+		if c < 'A' || c > 'Z' {
+			return false
+		}
+	}
+	return true
+}
+func validAccount(in AccountInput) bool {
+	return (in.Scope == "project" || in.Scope == "shared") && strings.TrimSpace(in.Code) != "" && strings.TrimSpace(in.Name) != "" && currency(strings.TrimSpace(in.Currency)) && map[string]bool{"asset": true, "liability": true, "equity": true, "revenue": true, "expense": true}[in.AccountType]
+}
+func prepareEntry(in EntryInput) (EntryInput, error) {
+	in.EntryDate = strings.TrimSpace(in.EntryDate)
+	in.Description = strings.TrimSpace(in.Description)
+	in.IdempotencyKey = strings.TrimSpace(in.IdempotencyKey)
+	if _, err := time.Parse("2006-01-02", in.EntryDate); err != nil || in.Description == "" || in.IdempotencyKey == "" || len(in.Lines) < 2 || len(in.Lines) > 100 {
+		return EntryInput{}, ErrInvalidInput
+	}
+	debit := new(big.Rat)
+	credit := new(big.Rat)
+	for i, line := range in.Lines {
+		in.Lines[i].AccountID = strings.TrimSpace(line.AccountID)
+		in.Lines[i].Currency = strings.TrimSpace(line.Currency)
+		in.Lines[i].Memo = strings.TrimSpace(line.Memo)
+		da, dr, dok := decimal(line.DebitAmount, false)
+		ca, cr, cok := decimal(line.CreditAmount, false)
+		fd, fr, fdok := decimal(line.FunctionalDebit, false)
+		fc, fcR, fcok := decimal(line.FunctionalCredit, false)
+		rate, _, rok := decimal(line.ExchangeRate, true)
+		if in.Lines[i].AccountID == "" || !currency(in.Lines[i].Currency) || !dok || !cok || !fdok || !fcok || !rok || (dr.Sign() > 0) == (cr.Sign() > 0) || (fr.Sign() > 0) == (fcR.Sign() > 0) {
+			return EntryInput{}, ErrInvalidInput
+		}
+		in.Lines[i].DebitAmount, in.Lines[i].CreditAmount, in.Lines[i].FunctionalDebit, in.Lines[i].FunctionalCredit, in.Lines[i].ExchangeRate = da, ca, fd, fc, rate
+		debit.Add(debit, fr)
+		credit.Add(credit, fcR)
+	}
+	if debit.Cmp(credit) != 0 {
+		return EntryInput{}, ErrInvalidInput
+	}
+	return in, nil
+}
+func newID(prefix string) string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return prefix + time.Now().UTC().Format("20060102150405.000000000")
+	}
+	return prefix + hex.EncodeToString(b[:])
+}

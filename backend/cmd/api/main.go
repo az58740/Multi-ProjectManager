@@ -15,6 +15,7 @@ import (
 
 	"github.com/az58740/multi-project-manager/backend/internal/auth"
 	"github.com/az58740/multi-project-manager/backend/internal/export"
+	"github.com/az58740/multi-project-manager/backend/internal/ledger"
 	"github.com/az58740/multi-project-manager/backend/internal/projects"
 )
 
@@ -32,6 +33,7 @@ func run() error {
 	var projectStore projects.Store
 	var exportStore export.Store
 	var authStore auth.Store
+	var ledgerStore ledger.Store
 	dataMode := "database"
 	if databaseURL != "" {
 		// Project migrations also install the additive authentication and export schemas.
@@ -53,6 +55,12 @@ func run() error {
 		}
 		defer as.Close()
 		authStore = as
+		ls, err := ledger.NewPostgresStore(ctx, databaseURL)
+		if err != nil {
+			return fmt.Errorf("ledger database initialization failed: %w", err)
+		}
+		defer ls.Close()
+		ledgerStore = ls
 	} else {
 		if production {
 			return errors.New("DATABASE_URL is required in production; refusing to use ephemeral demo data")
@@ -62,6 +70,7 @@ func run() error {
 		projectStore = projects.NewMemoryStore(projects.DemoProjects())
 		exportStore = export.NewMemoryStore(projectStore)
 		authStore = auth.NewMemoryStore()
+		ledgerStore = ledger.NewMemoryStore()
 	}
 	localAuth, err := auth.New(authStore, os.Getenv("PUBLIC_APP_ORIGIN"), production)
 	if err != nil {
@@ -93,6 +102,7 @@ func run() error {
 	projectMux := http.NewServeMux()
 	projects.NewHandler(projectStore, dataMode).Register(projectMux)
 	export.NewHandler(projectStore, exportStore).Register(projectMux)
+	ledger.NewHandler(projectStore, ledgerStore).Register(projectMux)
 	projectAccess := localAuth.RequireSameOrigin(localAuth.RequireSession(projectMux))
 	mux.Handle("/api/v1/projects", projectAccess)
 	mux.Handle("/api/v1/projects/", projectAccess)
