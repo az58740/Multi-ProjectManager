@@ -152,7 +152,15 @@ func (s *PostgresStore) CreateEntry(ctx context.Context, pid, actor string, in E
 	}
 	if e = tx.Commit(ctx); e != nil {
 		if isUnique(e) {
-			return JournalEntry{}, ErrConflict
+			// Another request won the unique-key race. Return its committed entry
+			// so a network retry remains idempotent instead of leaking a conflict.
+			var winner JournalEntry
+			winnerErr := s.pool.QueryRow(ctx, `SELECT id,project_id,entry_date::text,description,idempotency_key,COALESCE(created_by,''),created_at FROM ledger_journal_entries WHERE project_id=$1 AND idempotency_key=$2`, pid, in.IdempotencyKey).Scan(&winner.ID, &winner.ProjectID, &winner.EntryDate, &winner.Description, &winner.IdempotencyKey, &winner.CreatedBy, &winner.CreatedAt)
+			if winnerErr != nil {
+				return JournalEntry{}, winnerErr
+			}
+			winner.Lines, winnerErr = loadLines(ctx, s.pool, winner.ID)
+			return winner, winnerErr
 		}
 		return JournalEntry{}, e
 	}
