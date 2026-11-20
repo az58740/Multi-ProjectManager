@@ -86,6 +86,8 @@ func TestSecurityFlows(t *testing.T) {
 	}
 	w = req(m, "POST", "/api/v1/auth/login", `{"email":"member@example.test","password":"`+userPassword+`"}`, nil, origin)
 	mustStatus(t, w, 200)
+	w = req(m, "POST", "/api/v1/auth/login", `{"email":"  MEMBER@EXAMPLE.TEST  ","password":"`+userPassword+`"}`, nil, origin)
+	mustStatus(t, w, 200)
 	mustStatus(t, req(m, "GET", "/api/v1/projects", "", nil, ""), 401)
 	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", nil, ""), 401)
 	mustStatus(t, req(m, "POST", "/api/v1/auth/login", `{"email":"admin@example.test","password":"wrong"}`, nil, origin), 401)

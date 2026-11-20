@@ -109,7 +109,8 @@ func (s *PostgresStore) Create(ctx context.Context, r record, actor string) (Use
 }
 func (s *PostgresStore) ByEmail(ctx context.Context, email string) (record, error) {
 	var r record
-	err := s.pool.QueryRow(ctx, `SELECT `+columns+`, password_hash FROM auth_users WHERE email=$1`, email).Scan(&r.ID, &r.Name, &r.Email, &r.Role, &r.Status, &r.CreatedAt, &r.PasswordHash)
+	// Match normalized input against legacy rows that may predate email normalization.
+	err := s.pool.QueryRow(ctx, `SELECT `+columns+`, password_hash FROM auth_users WHERE lower(trim(email))=$1`, email).Scan(&r.ID, &r.Name, &r.Email, &r.Role, &r.Status, &r.CreatedAt, &r.PasswordHash)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, ErrNotFound
 	}
