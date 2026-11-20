@@ -17,9 +17,10 @@ type Props = {
   error: string;
   onSubmit: (payload: ProjectWritePayload) => void;
   onCancel: () => void;
+  currencyNote?: string;
 };
 
-export function ProjectForm({ initial, isEdit, busy, error, onSubmit, onCancel }: Props) {
+export function ProjectForm({ initial, isEdit, busy, error, onSubmit, onCancel, currencyNote }: Props) {
   const { locale, t } = useLocale();
   const initialType = initial?.type ?? "export";
   const [type, setType] = useState<ProjectType>(initialType);
@@ -168,7 +169,7 @@ export function ProjectForm({ initial, isEdit, busy, error, onSubmit, onCancel }
             {currencySelector("costCurrency", costSelectValue, (next) => { setCostCurrency(next === "custom" ? "custom" : next); setCustomCost(next === "custom" && !CURRENCY_CODES.includes(costCurrency as (typeof CURRENCY_CODES)[number]) ? costCurrency : ""); }, "customCostCurrency", customCost, setCustomCost, t.defaultCostCurrency)}
             {currencySelector("salesCurrency", salesSelectValue, (next) => { setSalesCurrency(next === "custom" ? "custom" : next); setCustomSales(next === "custom" && !CURRENCY_CODES.includes(salesCurrency as (typeof CURRENCY_CODES)[number]) ? salesCurrency : ""); }, "customSalesCurrency", customSales, setCustomSales, t.defaultSalesCurrency)}
           </div>
-          <p className="mb-0 mt-3 text-xs leading-6 text-muted">{t.currencyDefaultNote}</p>
+          <p className="mb-0 mt-3 text-xs leading-6 text-muted">{currencyNote ?? t.currencyDefaultNote}</p>
         </section>
       )}
 

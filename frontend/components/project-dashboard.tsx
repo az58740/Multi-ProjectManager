@@ -341,7 +341,7 @@ export function ProjectDashboard() {
                 const validType: ProjectType = isProjectType(project.type) ? project.type : "other";
                 return (
                   <article key={project.id} className="group rounded-[25px] border border-line bg-paper transition duration-300 hover:-translate-y-1 hover:border-sage-dark hover:shadow-xl hover:shadow-forest/5">
-                    <button type="button" onClick={() => void showDetails(project)} aria-label={`${t.projectDetails}: ${project.code} — ${project.name}`} className="block w-full rounded-[25px] p-5 text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark sm:p-6">
+                    <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.code} — ${project.name}`} className="block w-full rounded-[25px] p-5 text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark sm:p-6">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
                           <span className="grid size-12 shrink-0 place-items-center rounded-[17px] bg-sage text-forest"><TypeIcon type={validType} /></span>

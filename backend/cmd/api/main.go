@@ -3,61 +3,80 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/az58740/multi-project-manager/backend/internal/auth"
+	"github.com/az58740/multi-project-manager/backend/internal/export"
 	"github.com/az58740/multi-project-manager/backend/internal/projects"
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	production := strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") || os.Getenv("VERCEL") == "1"
 	var projectStore projects.Store
+	var exportStore export.Store
 	var authStore auth.Store
 	dataMode := "database"
 	if databaseURL != "" {
-		// Project migrations also install the additive authentication schema.
+		// Project migrations also install the additive authentication and export schemas.
 		ps, err := projects.NewPostgresStore(ctx, databaseURL)
 		if err != nil {
-			log.Fatalf("database initialization failed: %v", err)
+			return fmt.Errorf("database initialization failed: %w", err)
 		}
 		defer ps.Close()
 		projectStore = ps
+		es, err := export.NewPostgresStore(ctx, databaseURL)
+		if err != nil {
+			return fmt.Errorf("export database initialization failed: %w", err)
+		}
+		defer es.Close()
+		exportStore = es
 		as, err := auth.NewPostgresStore(ctx, databaseURL)
 		if err != nil {
-			log.Fatalf("authentication database initialization failed: %v", err)
+			return fmt.Errorf("authentication database initialization failed: %w", err)
 		}
 		defer as.Close()
 		authStore = as
 	} else {
 		if production {
-			log.Fatal("DATABASE_URL is required in production; refusing to use ephemeral demo data")
+			return errors.New("DATABASE_URL is required in production; refusing to use ephemeral demo data")
 		}
-		log.Print("DEMO MODE: project data, users and sessions are temporary and stored in process memory")
+		log.Print("DEMO MODE: project and export data, users and sessions are temporary and stored in process memory")
 		dataMode = "demo"
 		projectStore = projects.NewMemoryStore(projects.DemoProjects())
+		exportStore = export.NewMemoryStore(projectStore)
 		authStore = auth.NewMemoryStore()
 	}
 	localAuth, err := auth.New(authStore, os.Getenv("PUBLIC_APP_ORIGIN"), production)
 	if err != nil {
-		log.Fatalf("authentication configuration failed: %v", err)
+		return fmt.Errorf("authentication configuration failed: %w", err)
 	}
 	created, err := localAuth.Bootstrap(ctx, os.Getenv("BOOTSTRAP_ADMIN_EMAIL"), os.Getenv("BOOTSTRAP_ADMIN_PASSWORD"))
 	if err != nil {
-		log.Fatalf("administrator bootstrap failed: %v", err)
+		return fmt.Errorf("administrator bootstrap failed: %w", err)
 	}
 	if created {
 		log.Print("Initial administrator created from server-side bootstrap credentials")
 	}
 	users, err := authStore.List(ctx)
 	if err != nil {
-		log.Fatalf("administrator verification failed: %v", err)
+		return fmt.Errorf("administrator verification failed: %w", err)
 	}
 	hasAdmin := false
 	for _, u := range users {
@@ -67,12 +86,13 @@ func main() {
 		}
 	}
 	if !hasAdmin {
-		log.Fatal("An active administrator is required. For an empty user store, set BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD before starting the server; existing users are never auto-promoted")
+		return errors.New("An active administrator is required. For an empty user store, set BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD before starting the server; existing users are never auto-promoted")
 	}
 	mux := http.NewServeMux()
 	localAuth.Register(mux)
 	projectMux := http.NewServeMux()
 	projects.NewHandler(projectStore, dataMode).Register(projectMux)
+	export.NewHandler(projectStore, exportStore).Register(projectMux)
 	projectAccess := localAuth.RequireSameOrigin(localAuth.RequireSession(projectMux))
 	mux.Handle("/api/v1/projects", projectAccess)
 	mux.Handle("/api/v1/projects/", projectAccess)
@@ -92,8 +112,30 @@ func main() {
 	}
 	server := &http.Server{Addr: ":" + port, Handler: securityHeaders(mux), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second}
 	log.Printf("Go API listening on :%s", port)
-	log.Fatal(server.ListenAndServe())
+	signalCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- server.ListenAndServe() }()
+	select {
+	case err := <-serveErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-signalCtx.Done():
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer shutdownCancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			_ = server.Close()
+			return fmt.Errorf("HTTP shutdown failed: %w", err)
+		}
+		if err := <-serveErr; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return err
+		}
+		return nil
+	}
 }
+
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")

@@ -60,7 +60,7 @@ func (a *Auth) Bootstrap(ctx context.Context, email, password string) (bool, err
 	}
 	email, ok := validEmail(email)
 	if !ok || !validPassword(password) {
-		return false, errors.New("invalid bootstrap administrator email or password (password must be 12–72 bytes)")
+		return false, errors.New("invalid bootstrap administrator email or password (password must be 4–72 bytes)")
 	}
 	id, err := newID()
 	if err != nil {
@@ -370,8 +370,15 @@ func (a *Auth) session(w http.ResponseWriter, r *http.Request) {
 func writeSession(w http.ResponseWriter, u User) {
 	writeJSON(w, 200, map[string]any{"authenticated": true, "authorized": true, "user": map[string]string{"id": u.ID, "name": u.Name, "email": u.Email, "role": u.Role, "status": u.Status}})
 }
+func (a *Auth) cookieSameSite() http.SameSite {
+	// HTTPS Preview may be embedded on another site. Local HTTP remains strict.
+	if a.secure {
+		return http.SameSiteNoneMode
+	}
+	return http.SameSiteStrictMode
+}
 func (a *Auth) setCookie(w http.ResponseWriter, value string, expiry time.Time) {
-	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: value, Path: "/", HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteStrictMode, MaxAge: int(sessionLifetime.Seconds()), Expires: expiry})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: value, Path: "/", HttpOnly: true, Secure: a.secure, SameSite: a.cookieSameSite(), MaxAge: int(sessionLifetime.Seconds()), Expires: expiry})
 }
 func (a *Auth) logout(w http.ResponseWriter, r *http.Request) {
 	if c, err := r.Cookie(sessionCookieName); err == nil {
@@ -380,7 +387,7 @@ func (a *Auth) logout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: "", Path: "/", HttpOnly: true, Secure: a.secure, SameSite: http.SameSiteStrictMode, MaxAge: -1, Expires: time.Unix(0, 0)})
+	http.SetCookie(w, &http.Cookie{Name: sessionCookieName, Value: "", Path: "/", HttpOnly: true, Secure: a.secure, SameSite: a.cookieSameSite(), MaxAge: -1, Expires: time.Unix(0, 0)})
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 func (a *Auth) listUsers(w http.ResponseWriter, r *http.Request) {

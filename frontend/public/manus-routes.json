@@ -3,6 +3,7 @@
     { "path": "/", "title": "معرفی مجموعه" },
     { "path": "/login", "title": "ورود و ثبت‌نام" },
     { "path": "/dashboard", "title": "پروژه‌ها" },
-    { "path": "/dashboard/users", "title": "مدیریت کاربران" }
+    { "path": "/dashboard/users", "title": "مدیریت کاربران" },
+    { "path": "/dashboard/projects/:code/export", "title": "داشبورد صادرات" }
   ]
 }

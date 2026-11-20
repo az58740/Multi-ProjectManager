@@ -48,6 +48,7 @@ type Store interface {
 	List(context.Context) ([]Project, error)
 	Create(context.Context, CreateInput) (Project, error)
 	Get(context.Context, string) (Project, error)
+	GetByCode(context.Context, string) (Project, error)
 	Update(context.Context, string, CreateInput) (Project, error)
 }
 
@@ -90,6 +91,17 @@ func (s *MemoryStore) Get(_ context.Context, id string) (Project, error) {
 	defer s.mu.RUnlock()
 	for _, project := range s.projects {
 		if project.ID == id {
+			return project, nil
+		}
+	}
+	return Project{}, ErrNotFound
+}
+
+func (s *MemoryStore) GetByCode(_ context.Context, code string) (Project, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, project := range s.projects {
+		if project.Code == code {
 			return project, nil
 		}
 	}

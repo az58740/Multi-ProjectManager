@@ -181,6 +181,17 @@ func (s *PostgresStore) Get(ctx context.Context, id string) (Project, error) {
 	return item, nil
 }
 
+func (s *PostgresStore) GetByCode(ctx context.Context, code string) (Project, error) {
+	item, err := scanProject(s.pool.QueryRow(ctx, `SELECT `+projectColumns+` FROM projects WHERE code = $1`, code))
+	if err != nil {
+		if isNoRows(err) {
+			return Project{}, ErrNotFound
+		}
+		return Project{}, err
+	}
+	return item, nil
+}
+
 func (s *PostgresStore) Update(ctx context.Context, id string, in CreateInput) (Project, error) {
 	item, err := scanProject(s.pool.QueryRow(ctx, `
 		UPDATE projects SET

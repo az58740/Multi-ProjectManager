@@ -90,7 +90,7 @@ func TestSecurityFlows(t *testing.T) {
 	mustStatus(t, req(m, "GET", "/api/v1/auth/session", "", nil, ""), 401)
 	mustStatus(t, req(m, "POST", "/api/v1/auth/login", `{"email":"admin@example.test","password":"wrong"}`, nil, origin), 401)
 	admin := loginAs(t, m, adminEmail, adminPassword)
-	if !admin.HttpOnly || !admin.Secure || admin.SameSite != http.SameSiteStrictMode || admin.Path != "/" || admin.MaxAge <= 0 {
+	if !admin.HttpOnly || !admin.Secure || admin.SameSite != http.SameSiteNoneMode || admin.Path != "/" || admin.MaxAge <= 0 {
 		t.Fatalf("unsafe cookie: %#v", admin)
 	}
 	w = req(m, "GET", "/api/v1/users", "", admin, "")
@@ -279,5 +279,27 @@ func TestLimitsInputAndOrigin(t *testing.T) {
 	}
 	if a.secure != true {
 		t.Fatal("HTTPS cookie not secure")
+	}
+}
+
+func TestCookieModesForPreviewAndLocal(t *testing.T) {
+	for _, tc := range []struct {
+		origin string
+		secure bool
+		mode   http.SameSite
+	}{
+		{"http://localhost:3000", false, http.SameSiteStrictMode},
+		{"https://app.example.test", true, http.SameSiteNoneMode},
+	} {
+		a, err := New(NewMemoryStore(), tc.origin, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		w := httptest.NewRecorder()
+		a.setCookie(w, "example", time.Now().Add(time.Hour))
+		cookies := w.Result().Cookies()
+		if len(cookies) != 1 || cookies[0].Secure != tc.secure || cookies[0].SameSite != tc.mode {
+			t.Fatalf("origin %s: cookie %v", tc.origin, cookies)
+		}
 	}
 }
