@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, Check, CirclePlus, ClipboardList, Globe2, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, Warehouse, X } from "lucide-react";
+import { Building2, Check, CirclePlus, ClipboardList, Globe2, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -265,6 +265,14 @@ export function ProjectDashboard() {
         </div>
       </header>
 
+      <nav aria-label={isFa ? "منوی سریع داشبورد" : "Dashboard quick navigation"} className="sticky top-0 z-30 border-b border-line bg-paper/95 px-4 py-2 shadow-sm backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-[1440px] items-center gap-2 overflow-x-auto sm:px-2">
+          <button type="button" onClick={() => document.getElementById("projects-list")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="min-h-10 shrink-0 rounded-full bg-sage px-4 text-xs font-extrabold text-forest"><ClipboardList className="me-1 inline size-4" />{t.activeProjects}</button>
+          <button type="button" onClick={() => document.getElementById("resources")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="min-h-10 shrink-0 rounded-full border border-line px-4 text-xs font-extrabold text-forest"><Landmark className="me-1 inline size-4" />{isFa ? "منابع پروژه" : "Resources"}</button>
+          <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="min-h-10 shrink-0 rounded-full bg-forest px-4 text-xs font-extrabold text-white"><CirclePlus className="me-1 inline size-4" />{t.createProject}</button>
+        </div>
+      </nav>
+
       <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-8 lg:px-8">
         <aside className="hidden lg:block">
           <div className="sticky top-7 rounded-[26px] border border-line bg-paper p-4">
@@ -339,7 +347,7 @@ export function ProjectDashboard() {
               {projects.length === 0 && <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); }} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-forest underline decoration-sage-dark underline-offset-4"><Plus className="size-4" aria-hidden="true" />{t.createFirstProject}</button>}
             </div>
           ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div id="projects-list" className="mt-6 scroll-mt-20 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredProjects.map((project) => {
                 const validType: ProjectType = isProjectType(project.type) ? project.type : "other";
                 return (
