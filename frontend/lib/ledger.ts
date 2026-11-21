@@ -1,9 +1,11 @@
 export type LedgerAccountScope = "project" | "shared";
+export type LedgerSharedScope = "all" | "export" | "cold-storage" | "sorting" | "construction" | "rental" | "other" | "project";
 export type LedgerAccountType = "asset" | "liability" | "equity" | "revenue" | "expense";
 
 export type LedgerAccount = {
   id: string;
   scope: LedgerAccountScope;
+  sharedScope: LedgerSharedScope;
   projectId: string;
   code: string;
   name: string;
@@ -50,6 +52,7 @@ export type JournalEntry = {
 
 const accountTypes = ["asset", "liability", "equity", "revenue", "expense"] as const;
 const accountScopes = ["project", "shared"] as const;
+const sharedScopes = ["all", "export", "cold-storage", "sorting", "construction", "rental", "other", "project"] as const;
 
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
@@ -58,7 +61,7 @@ function record(value: unknown): value is Record<string, unknown> {
 export function isLedgerAccount(value: unknown): value is LedgerAccount {
   if (!record(value)) return false;
   return typeof value.id === "string" && accountScopes.includes(value.scope as LedgerAccountScope)
-    && typeof value.projectId === "string" && typeof value.code === "string" && typeof value.name === "string"
+    && sharedScopes.includes(value.sharedScope as LedgerSharedScope) && typeof value.projectId === "string" && typeof value.code === "string" && typeof value.name === "string"
     && accountTypes.includes(value.accountType as LedgerAccountType) && typeof value.currency === "string"
     && typeof value.isActive === "boolean" && typeof value.createdAt === "string";
 }

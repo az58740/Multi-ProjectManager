@@ -30,15 +30,15 @@ func NewPostgresStore(ctx context.Context, url string) (*PostgresStore, error) {
 }
 func (s *PostgresStore) Close() { s.pool.Close() }
 
-const accountCols = `id, scope, COALESCE(project_id,''), code, name, account_type, COALESCE(currency,''), is_active, created_at`
+const accountCols = `id, scope, COALESCE(shared_scope,''), COALESCE(project_id,''), code, name, account_type, COALESCE(currency,''), is_active, created_at`
 
 func scanAccount(row interface{ Scan(...any) error }) (Account, error) {
 	var a Account
-	e := row.Scan(&a.ID, &a.Scope, &a.ProjectID, &a.Code, &a.Name, &a.AccountType, &a.Currency, &a.IsActive, &a.CreatedAt)
+	e := row.Scan(&a.ID, &a.Scope, &a.SharedScope, &a.ProjectID, &a.Code, &a.Name, &a.AccountType, &a.Currency, &a.IsActive, &a.CreatedAt)
 	return a, e
 }
 func (s *PostgresStore) ListAccounts(ctx context.Context, pid string) ([]Account, error) {
-	rows, e := s.pool.Query(ctx, `SELECT `+accountCols+` FROM ledger_accounts WHERE scope='shared' OR project_id=$1 ORDER BY scope,code`, pid)
+	rows, e := s.pool.Query(ctx, `SELECT `+accountCols+` FROM ledger_accounts a WHERE (a.scope='shared' AND (a.shared_scope='all' OR a.shared_scope=(SELECT type FROM projects WHERE id=$1))) OR a.project_id=$1 ORDER BY a.scope,a.code`, pid)
 	if e != nil {
 		return nil, e
 	}
@@ -59,10 +59,12 @@ func (s *PostgresStore) CreateAccount(ctx context.Context, pid string, in Accoun
 		return Account{}, ErrInvalidInput
 	}
 	project := any(nil)
+	sharedScope := strings.TrimSpace(in.SharedScope)
 	if in.Scope == "project" {
 		project = pid
+		sharedScope = "project"
 	}
-	a, e := scanAccount(s.pool.QueryRow(ctx, `INSERT INTO ledger_accounts(id,scope,project_id,code,name,account_type,currency) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING `+accountCols, newID("acct_"), in.Scope, project, in.Code, in.Name, in.AccountType, in.Currency))
+	a, e := scanAccount(s.pool.QueryRow(ctx, `INSERT INTO ledger_accounts(id,scope,shared_scope,project_id,code,name,account_type,currency) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING `+accountCols, newID("acct_"), in.Scope, sharedScope, project, in.Code, in.Name, in.AccountType, in.Currency))
 	if e != nil {
 		if isUnique(e) {
 			return Account{}, ErrConflict

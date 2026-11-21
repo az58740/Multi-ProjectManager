@@ -10,6 +10,7 @@ import { LanguageToggle } from "@/components/language-toggle";
 import { ProjectDetails } from "@/components/project-details";
 import { ProjectForm } from "@/components/project-form";
 import { ProjectModal } from "@/components/project-modal";
+import { ProjectResourcesWorkspace } from "@/components/project-resources-workspace";
 import { fetchWithTimeout } from "@/lib/http";
 import { accountMessages } from "@/lib/account-i18n";
 import { jsonHeaders, type Session } from "@/lib/accounts";
@@ -302,6 +303,8 @@ export function ProjectDashboard() {
               </button>
             </div>
           </div>
+
+          {projects.length > 0 && <ProjectResourcesWorkspace projects={projects} />}
 
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">

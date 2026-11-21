@@ -6,7 +6,7 @@ import { useLocale } from "@/app/providers";
 import { jsonHeaders } from "@/lib/accounts";
 import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/http";
 import { ledgerMessages } from "@/lib/ledger-i18n";
-import { isJournalEntryList, isLedgerAccountList, type JournalEntry, type LedgerAccount, type LedgerAccountScope, type LedgerAccountType } from "@/lib/ledger";
+import { isJournalEntryList, isLedgerAccountList, type JournalEntry, type LedgerAccount, type LedgerAccountScope, type LedgerAccountType, type LedgerSharedScope } from "@/lib/ledger";
 
 const inputClass = "mt-2 min-h-11 w-full rounded-2xl border border-line bg-white px-3 text-sm font-medium text-ink outline-none transition focus:border-forest/40 focus:ring-4 focus:ring-sage/70";
 const labelClass = "block text-xs font-bold text-ink";
@@ -67,7 +67,7 @@ function emptyLine(account?: LedgerAccount): DraftLine {
   return { accountId: account?.id ?? "", side: "debit", currency: account?.currency ?? "USD", amount: "", rate: "", memo: "" };
 }
 
-function AccountForm({ busy, onSave, message }: { busy: boolean; onSave: (input: { scope: LedgerAccountScope; code: string; name: string; accountType: LedgerAccountType; currency: string }) => Promise<boolean>; message: string }) {
+function AccountForm({ busy, onSave, message }: { busy: boolean; onSave: (input: { scope: LedgerAccountScope; sharedScope: LedgerSharedScope; code: string; name: string; accountType: LedgerAccountType; currency: string }) => Promise<boolean>; message: string }) {
   const { locale } = useLocale();
   const m = ledgerMessages[locale];
 
@@ -77,14 +77,16 @@ function AccountForm({ busy, onSave, message }: { busy: boolean; onSave: (input:
     const form = event.currentTarget;
     const data = new FormData(form);
     const scope = String(data.get("scope"));
+    const sharedScope = String(data.get("sharedScope") ?? "all");
     const accountType = String(data.get("accountType"));
     const currency = String(data.get("currency") ?? "").trim().toUpperCase();
     const code = String(data.get("code") ?? "").trim();
     const name = String(data.get("name") ?? "").trim();
     if (!code || !name || !/^[A-Z]{3}$/.test(currency)) return;
     if (scope !== "project" && scope !== "shared") return;
+    if (!["all", "export", "cold-storage", "sorting", "construction", "rental", "other", "project"].includes(sharedScope)) return;
     if (!["asset", "liability", "equity", "revenue", "expense"].includes(accountType)) return;
-    const saved = await onSave({ scope: scope as LedgerAccountScope, code, name, accountType: accountType as LedgerAccountType, currency });
+    const saved = await onSave({ scope: scope as LedgerAccountScope, sharedScope: sharedScope as LedgerSharedScope, code, name, accountType: accountType as LedgerAccountType, currency });
     if (saved) form.reset();
   }
 
@@ -97,6 +99,7 @@ function AccountForm({ busy, onSave, message }: { busy: boolean; onSave: (input:
     <label className={labelClass}>{m.accountName}<input name="name" required maxLength={120} className={inputClass} /></label>
     <div className="grid gap-3 sm:grid-cols-2">
       <label className={labelClass}>{m.scope}<select name="scope" defaultValue="project" className={inputClass}><option value="project">{m.project}</option><option value="shared">{m.shared}</option></select></label>
+      <label className={labelClass}>{m.sharedScope}<select name="sharedScope" defaultValue="all" className={inputClass}><option value="all">{m.allProjects}</option><option value="export">{m.exportProjects}</option><option value="construction">{m.constructionProjects}</option><option value="cold-storage">{m.coldStorageProjects}</option><option value="sorting">{m.sortingProjects}</option><option value="rental">{m.rentalProjects}</option><option value="other">{m.otherProjects}</option></select></label>
       <label className={labelClass}>{m.accountType}<select name="accountType" defaultValue="asset" className={inputClass}><option value="asset">{m.asset}</option><option value="liability">{m.liability}</option><option value="equity">{m.equity}</option><option value="revenue">{m.revenue}</option><option value="expense">{m.expense}</option></select></label>
     </div>
     <p className="m-0 text-xs leading-5 text-muted">{m.createAccountHint}</p>
@@ -109,7 +112,7 @@ function AccountCard({ account }: { account: LedgerAccount }) {
   const m = ledgerMessages[locale];
   return <article className="rounded-2xl border border-line bg-white p-4">
     <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p dir="ltr" className="m-0 break-all font-mono text-xs font-black text-forest">{account.code}</p><h3 className="mb-0 mt-2 break-words text-sm font-black text-ink">{account.name}</h3></div><span className="shrink-0 rounded-full bg-sage px-2.5 py-1 text-xs font-bold text-forest">{account.scope === "shared" ? m.shared : m.project}</span></div>
-    <div className="mt-4 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-cream px-2.5 py-1 font-bold text-muted">{m[account.accountType]}</span><span dir="ltr" className="rounded-full bg-cream px-2.5 py-1 font-bold text-muted">{account.currency}</span></div>
+    <div className="mt-4 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-cream px-2.5 py-1 font-bold text-muted">{m[account.accountType]}</span><span dir="ltr" className="rounded-full bg-cream px-2.5 py-1 font-bold text-muted">{account.currency}</span>{account.scope === "shared" && <span className="rounded-full bg-amber-soft px-2.5 py-1 font-bold text-[#735722]">{m[`${account.sharedScope}Projects` as keyof typeof m] ?? account.sharedScope}</span>}</div>
   </article>;
 }
 
@@ -212,7 +215,7 @@ export function LedgerWorkspace({ code }: { code: string }) {
 
   useEffect(() => { void loadAccounts(); void loadEntries(); }, [loadAccounts, loadEntries]);
 
-  async function saveAccount(input: { scope: LedgerAccountScope; code: string; name: string; accountType: LedgerAccountType; currency: string }): Promise<boolean> {
+  async function saveAccount(input: { scope: LedgerAccountScope; sharedScope: LedgerSharedScope; code: string; name: string; accountType: LedgerAccountType; currency: string }): Promise<boolean> {
     setBusy("account"); setError(null); setNotice(null);
     try {
       const response = await fetchWithTimeout(`${path}/accounts`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify(input) });

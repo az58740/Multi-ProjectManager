@@ -43,7 +43,9 @@ func (s *MemoryStore) CreateAccount(_ context.Context, projectID string, in Acco
 	if in.Scope == "shared" {
 		pid = ""
 	}
-	a := Account{ID: id, Scope: in.Scope, ProjectID: pid, Code: in.Code, Name: in.Name, AccountType: in.AccountType, Currency: in.Currency, IsActive: true, CreatedAt: time.Now().UTC()}
+	sharedScope := in.SharedScope
+	if in.Scope == "project" { sharedScope = "project" }
+	a := Account{ID: id, Scope: in.Scope, SharedScope: sharedScope, ProjectID: pid, Code: in.Code, Name: in.Name, AccountType: in.AccountType, Currency: in.Currency, IsActive: true, CreatedAt: time.Now().UTC()}
 	s.accounts = append(s.accounts, a)
 	return a, nil
 }
