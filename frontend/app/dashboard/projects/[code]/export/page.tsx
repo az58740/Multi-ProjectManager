@@ -7,6 +7,8 @@ import { ArrowRight, Leaf, LoaderCircle, LogOut, ScrollText } from "lucide-react
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { ExportWorkspace } from "@/components/export-workspace";
+import { ExportOperationsWorkspace } from "@/components/export-operations-workspace";
+import { ExportStats } from "@/components/export-stats";
 import { LedgerWorkspace } from "@/components/ledger-workspace";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ProjectDetails } from "@/components/project-details";
@@ -101,9 +103,10 @@ export default function ExportDashboardPage() {
         <section className="mt-5 rounded-[28px] bg-forest p-6 text-white shadow-xl shadow-forest/10 sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"><div><div className="flex flex-wrap items-center gap-3"><span className="grid size-11 place-items-center rounded-[15px] bg-white/10 text-amber-light"><Leaf className="size-5" aria-hidden="true" /></span><span dir="ltr" className="rounded-lg bg-white/10 px-3 py-1.5 font-mono text-xs font-black">{project.code}</span><span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold">{m.projectStatus[project.status]}</span></div><p className="mb-0 mt-5 text-xs font-extrabold uppercase tracking-[0.16em] text-amber-light">{t.exportDashboardKicker}</p><h1 className="mb-0 mt-2 break-words text-3xl font-black tracking-tight sm:text-4xl">{project.name}</h1><p className="mb-0 mt-3 max-w-2xl text-sm leading-7 text-white/70">{m.description}</p><button type="button" onClick={() => { setEditError(false); setModal("details"); }} className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-full border border-white/30 px-4 text-xs font-bold text-white transition hover:bg-white/10"><ScrollText className="size-4" aria-hidden="true" />{m.projectDetails}</button></div><dl className="m-0 grid grid-cols-2 gap-3 text-sm sm:min-w-[310px]">{[[m.location, project.location], [m.destination, project.destination], [m.manager, project.manager], [m.accountant, project.accountant]].map(([label, value]) => <div key={label} className="min-w-0 rounded-2xl bg-white/10 p-4"><dt className="text-xs text-white/60">{label}</dt><dd className="mb-0 ms-0 mt-2 break-words font-extrabold">{value || "—"}</dd></div>)}</dl></div>
         </section>
+        <ExportOperationsWorkspace code={project.code} />
         <ExportWorkspace key={project.code} code={project.code} />
         <LedgerWorkspace code={project.code} />
-        <aside className="mt-6 flex items-start gap-3 rounded-2xl border border-line bg-paper px-5 py-4"><ScrollText className="mt-0.5 size-5 shrink-0 text-amber" aria-hidden="true" /><div><h2 className="m-0 text-sm font-black text-forest">{m.financialTitle}</h2><p className="mb-0 mt-1 text-xs leading-6 text-muted">{m.financialDescription}</p></div></aside>
+        <ExportStats code={project.code} />
       </div>
       {modal && <ProjectModal title={modal === "details" ? t.projectDetails : t.editProjectTitle} onClose={closeModal}>{modal === "details" ? <ProjectDetails project={project} onEdit={() => { setEditError(false); setModal("edit"); }} /> : <ProjectForm initial={project} isEdit busy={editBusy} error={editError ? m.projectSaveError : ""} currencyNote={m.currencyNote} onSubmit={(input) => void saveProject(input)} onCancel={closeModal} />}</ProjectModal>}
     </main>

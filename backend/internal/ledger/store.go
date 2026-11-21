@@ -17,6 +17,8 @@ var (
 	ErrAccountNotFound = errors.New("ledger account not found")
 )
 
+var ProductTypes = map[string]bool{"resale": true, "supply": true}
+
 type AccountInput struct {
 	Scope       string `json:"scope"`
 	Code        string `json:"code"`
@@ -34,6 +36,22 @@ type Account struct {
 	Currency    string    `json:"currency"`
 	IsActive    bool      `json:"isActive"`
 	CreatedAt   time.Time `json:"createdAt"`
+}
+
+type ProductInput struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+	ItemType string `json:"itemType"`
+	Unit string `json:"unit"`
+	Currency string `json:"currency"`
+}
+
+type Product struct {
+	ID string `json:"id"`
+	ProjectID string `json:"projectId"`
+	ProductInput
+	IsActive bool `json:"isActive"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 type LineInput struct {
 	AccountID        string `json:"accountId"`
@@ -72,6 +90,8 @@ type JournalEntry struct {
 type Store interface {
 	ListAccounts(context.Context, string) ([]Account, error)
 	CreateAccount(context.Context, string, AccountInput) (Account, error)
+	ListProducts(context.Context, string) ([]Product, error)
+	CreateProduct(context.Context, string, ProductInput) (Product, error)
 	ListEntries(context.Context, string) ([]JournalEntry, error)
 	CreateEntry(context.Context, string, string, EntryInput) (JournalEntry, error)
 }
@@ -104,7 +124,16 @@ func currency(v string) bool {
 	return true
 }
 func validAccount(in AccountInput) bool {
-	return (in.Scope == "project" || in.Scope == "shared") && strings.TrimSpace(in.Code) != "" && strings.TrimSpace(in.Name) != "" && currency(strings.TrimSpace(in.Currency)) && map[string]bool{"asset": true, "liability": true, "equity": true, "revenue": true, "expense": true}[in.AccountType]
+	in.Code, in.Name, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.ToUpper(strings.TrimSpace(in.Currency))
+	return (in.Scope == "project" || in.Scope == "shared") && in.Code != "" && in.Name != "" && currency(in.Currency) && map[string]bool{"asset": true, "liability": true, "equity": true, "revenue": true, "expense": true}[in.AccountType]
+}
+
+func prepareProduct(in ProductInput) (ProductInput, error) {
+	in.Code, in.Name, in.ItemType, in.Unit, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.TrimSpace(in.ItemType), strings.TrimSpace(in.Unit), strings.ToUpper(strings.TrimSpace(in.Currency))
+	if in.Code == "" || in.Name == "" || !ProductTypes[in.ItemType] || in.Unit == "" || !currency(in.Currency) || strings.ContainsRune(in.Code, 0) || strings.ContainsRune(in.Name, 0) || strings.ContainsRune(in.Unit, 0) {
+		return ProductInput{}, ErrInvalidInput
+	}
+	return in, nil
 }
 func prepareEntry(in EntryInput) (EntryInput, error) {
 	in.EntryDate = strings.TrimSpace(in.EntryDate)

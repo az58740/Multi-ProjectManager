@@ -2,6 +2,7 @@ package ledger
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 )
@@ -9,6 +10,7 @@ import (
 type MemoryStore struct {
 	mu       sync.RWMutex
 	accounts []Account
+	products []Product
 	entries  []JournalEntry
 }
 
@@ -25,6 +27,7 @@ func (s *MemoryStore) ListAccounts(_ context.Context, projectID string) ([]Accou
 	return out, nil
 }
 func (s *MemoryStore) CreateAccount(_ context.Context, projectID string, in AccountInput) (Account, error) {
+	in.Currency = strings.ToUpper(strings.TrimSpace(in.Currency))
 	if !validAccount(in) {
 		return Account{}, ErrInvalidInput
 	}
@@ -55,6 +58,24 @@ func (s *MemoryStore) ListEntries(_ context.Context, projectID string) ([]Journa
 	}
 	return out, nil
 }
+
+func (s *MemoryStore) ListProducts(_ context.Context, projectID string) ([]Product, error) {
+	s.mu.RLock(); defer s.mu.RUnlock()
+	out := []Product{}
+	for _, p := range s.products { if p.ProjectID == projectID && p.IsActive { out = append(out, p) } }
+	return out, nil
+}
+
+func (s *MemoryStore) CreateProduct(_ context.Context, projectID string, in ProductInput) (Product, error) {
+	in.Currency = strings.ToUpper(strings.TrimSpace(in.Currency))
+	if _, err := prepareProduct(in); err != nil { return Product{}, err }
+	s.mu.Lock(); defer s.mu.Unlock()
+	for _, p := range s.products { if p.ProjectID == projectID && p.Code == in.Code { return Product{}, ErrConflict } }
+	p := Product{ID: newID("prod_"), ProjectID: projectID, ProductInput: in, IsActive: true, CreatedAt: time.Now().UTC()}
+	s.products = append(s.products, p)
+	return p, nil
+}
+
 func (s *MemoryStore) CreateEntry(_ context.Context, projectID, actor string, in EntryInput) (JournalEntry, error) {
 	in, err := prepareEntry(in)
 	if err != nil {

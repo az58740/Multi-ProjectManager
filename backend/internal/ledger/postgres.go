@@ -7,6 +7,7 @@ import (
 	"github.com/az58740/multi-project-manager/backend/internal/dbconfig"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"strings"
 	"time"
 )
 
@@ -53,6 +54,7 @@ func (s *PostgresStore) ListAccounts(ctx context.Context, pid string) ([]Account
 	return out, rows.Err()
 }
 func (s *PostgresStore) CreateAccount(ctx context.Context, pid string, in AccountInput) (Account, error) {
+	in.Code, in.Name, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.ToUpper(strings.TrimSpace(in.Currency))
 	if !validAccount(in) {
 		return Account{}, ErrInvalidInput
 	}
@@ -166,6 +168,32 @@ func (s *PostgresStore) CreateEntry(ctx context.Context, pid, actor string, in E
 	}
 	return entry, nil
 }
+
+const productCols = `id, project_id, code, name, item_type, unit, currency, is_active, created_at`
+
+func scanProduct(row interface{ Scan(...any) error }) (Product, error) {
+	var p Product
+	err := row.Scan(&p.ID, &p.ProjectID, &p.Code, &p.Name, &p.ItemType, &p.Unit, &p.Currency, &p.IsActive, &p.CreatedAt)
+	return p, err
+}
+
+func (s *PostgresStore) ListProducts(ctx context.Context, pid string) ([]Product, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+productCols+` FROM ledger_products WHERE project_id=$1 AND is_active ORDER BY item_type, name, id`, pid)
+	if err != nil { return nil, err }
+	defer rows.Close()
+	items := []Product{}
+	for rows.Next() { p, err := scanProduct(rows); if err != nil { return nil, err }; items = append(items, p) }
+	return items, rows.Err()
+}
+
+func (s *PostgresStore) CreateProduct(ctx context.Context, pid string, in ProductInput) (Product, error) {
+	in, err := prepareProduct(in)
+	if err != nil { return Product{}, err }
+	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING `+productCols, newID("prod_"), pid, in.Code, in.Name, in.ItemType, in.Unit, in.Currency))
+	if err != nil { if isUnique(err) { return Product{}, ErrConflict }; return Product{}, err }
+	return p, nil
+}
+
 func isUnique(e error) bool {
 	var pe interface{ SQLState() string }
 	return errors.As(e, &pe) && pe.SQLState() == "23505"

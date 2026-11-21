@@ -1,7 +1,7 @@
 export const ledgerMessages = {
   fa: {
     title: "دفترکل پروژه",
-    subtitle: "حساب‌ها، سندهای دستی و گردش مالی این پروژه را مدیریت کنید.",
+    subtitle: "حساب‌ها و سندهای ایجادشده از عملیات واقعی این پروژه را مدیریت و کنترل کنید.",
     accounts: "حساب‌ها",
     entries: "سندها",
     newEntry: "ثبت سند",
@@ -23,7 +23,7 @@ export const ledgerMessages = {
     saveAccount: "ثبت حساب",
     accountSaved: "حساب با موفقیت ثبت شد.",
     accountLoadError: "فهرست حساب‌ها دریافت نشد.",
-    accountSaveError: "ثبت حساب انجام نشد.",
+    accountSaveError: "ثبت حساب انجام نشد.", accountConflict: "این کد حساب قبلاً در همین دامنه ثبت شده است؛ کد دیگری انتخاب کنید.",
     noAccounts: "هنوز حسابی برای این پروژه ثبت نشده است.",
     entriesList: "سندهای ثبت‌شده",
     entriesListDescription: "سندهای project-scoped با خطوط بدهکار و بستانکار.",
@@ -59,7 +59,7 @@ export const ledgerMessages = {
   },
   en: {
     title: "Project ledger",
-    subtitle: "Manage this project's accounts, manual entries, and financial activity.",
+    subtitle: "Manage this project's accounts and journals created from real operations.",
     accounts: "Accounts",
     entries: "Entries",
     newEntry: "New entry",
@@ -81,7 +81,7 @@ export const ledgerMessages = {
     saveAccount: "Save account",
     accountSaved: "Account saved.",
     accountLoadError: "Accounts could not be loaded.",
-    accountSaveError: "The account could not be saved.",
+    accountSaveError: "The account could not be saved.", accountConflict: "This account code already exists in this scope. Choose another code.",
     noAccounts: "No accounts have been added to this project yet.",
     entriesList: "Recorded entries",
     entriesListDescription: "Project-scoped journal entries with debit and credit lines.",

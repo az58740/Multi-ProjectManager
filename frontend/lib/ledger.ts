@@ -13,6 +13,18 @@ export type LedgerAccount = {
   createdAt: string;
 };
 
+export type LedgerProduct = {
+  id: string;
+  projectId: string;
+  code: string;
+  name: string;
+  itemType: "resale" | "supply";
+  unit: string;
+  currency: string;
+  isActive: boolean;
+  createdAt: string;
+};
+
 export type JournalLine = {
   id: string;
   accountId: string;
@@ -65,7 +77,11 @@ export function isJournalEntry(value: unknown): value is JournalEntry {
 }
 
 export function isLedgerAccountList(value: unknown): value is { items: LedgerAccount[] } {
-  return record(value) && Array.isArray(value.items) && value.items.every(isLedgerAccount);
+	return record(value) && Array.isArray(value.items) && value.items.every(isLedgerAccount);
+}
+
+export function isLedgerProductList(value: unknown): value is { items: LedgerProduct[] } {
+	return record(value) && Array.isArray(value.items) && value.items.every((item) => record(item) && typeof item.id === "string" && typeof item.projectId === "string" && typeof item.code === "string" && typeof item.name === "string" && (item.itemType === "resale" || item.itemType === "supply") && typeof item.unit === "string" && typeof item.currency === "string" && typeof item.isActive === "boolean" && typeof item.createdAt === "string");
 }
 
 export function isJournalEntryList(value: unknown): value is { items: JournalEntry[] } {

@@ -18,6 +18,8 @@ func NewHandler(p projects.Store, s Store) *Handler { return &Handler{projects: 
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/projects/{code}/ledger/accounts", h.accounts)
 	mux.HandleFunc("POST /api/v1/projects/{code}/ledger/accounts", h.createAccount)
+	mux.HandleFunc("GET /api/v1/projects/{code}/ledger/products", h.products)
+	mux.HandleFunc("POST /api/v1/projects/{code}/ledger/products", h.createProduct)
 	mux.HandleFunc("GET /api/v1/projects/{code}/ledger/entries", h.entries)
 	mux.HandleFunc("POST /api/v1/projects/{code}/ledger/entries", h.createEntry)
 }
@@ -76,6 +78,26 @@ func (h *Handler) entries(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"items": items})
+}
+
+func (h *Handler) products(w http.ResponseWriter, r *http.Request) {
+	p, ok := h.project(w, r)
+	if !ok { return }
+	items, e := h.store.ListProducts(r.Context(), p.ID)
+	if e != nil { writeError(w, 500, "دریافت کالاها ممکن نشد."); return }
+	writeJSON(w, 200, map[string]any{"items": items})
+}
+
+func (h *Handler) createProduct(w http.ResponseWriter, r *http.Request) {
+	p, ok := h.project(w, r)
+	if !ok { return }
+	var in ProductInput
+	if !decode(w, r, &in) { return }
+	item, e := h.store.CreateProduct(r.Context(), p.ID, in)
+	if errors.Is(e, ErrInvalidInput) { writeError(w, 400, "اطلاعات کالا معتبر نیست."); return }
+	if errors.Is(e, ErrConflict) { writeError(w, 409, "کد کالا تکراری است."); return }
+	if e != nil { writeError(w, 500, "ثبت کالا ممکن نشد."); return }
+	writeJSON(w, 201, item)
 }
 func (h *Handler) createEntry(w http.ResponseWriter, r *http.Request) {
 	p, ok := h.project(w, r)

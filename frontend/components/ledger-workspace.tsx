@@ -12,6 +12,7 @@ const inputClass = "mt-2 min-h-11 w-full rounded-2xl border border-line bg-white
 const labelClass = "block text-xs font-bold text-ink";
 const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-forest px-5 text-sm font-extrabold text-white transition hover:bg-forest-light disabled:cursor-not-allowed disabled:opacity-60";
 const decimalPattern = /^(0|[1-9][0-9]*)(\.[0-9]+)?$/;
+const CURRENCIES = ["USD", "EUR", "AED", "TRY", "GBP", "CNY", "IRR"] as const;
 
 type Panel = "accounts" | "entries" | "newEntry";
 type EntrySide = "debit" | "credit";
@@ -90,8 +91,8 @@ function AccountForm({ busy, onSave, message }: { busy: boolean; onSave: (input:
   return <form onSubmit={(event) => void submit(event)} className="space-y-3" noValidate aria-busy={busy}>
     {message && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">{message}</p>}
     <div className="grid gap-3 sm:grid-cols-2">
-      <label className={labelClass}>{m.accountCode}<input name="code" required maxLength={40} className={inputClass} dir="ltr" placeholder="BANK-USD" /></label>
-      <label className={labelClass}>{m.currency}<input name="currency" required maxLength={3} className={inputClass} dir="ltr" defaultValue="USD" /></label>
+	      <label className={labelClass}>{m.accountCode}<input name="code" required maxLength={40} className={inputClass} dir="ltr" placeholder="BANK-USD" /></label>
+	      <label className={labelClass}>{m.currency}<select name="currency" required className={inputClass} dir="ltr" defaultValue="USD">{CURRENCIES.map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>
     </div>
     <label className={labelClass}>{m.accountName}<input name="name" required maxLength={120} className={inputClass} /></label>
     <div className="grid gap-3 sm:grid-cols-2">
@@ -185,7 +186,7 @@ export function LedgerWorkspace({ code }: { code: string }) {
   const [accounts, setAccounts] = useState<LoadState<LedgerAccount>>({ status: "loading", items: [] });
   const [entries, setEntries] = useState<LoadState<JournalEntry>>({ status: "loading", items: [] });
   const [busy, setBusy] = useState<"account" | "entry" | null>(null);
-  const [error, setError] = useState<"account" | "entry" | "accountsLoad" | "entriesLoad" | null>(null);
+  const [error, setError] = useState<"account" | "accountConflict" | "entry" | "accountsLoad" | "entriesLoad" | null>(null);
   const [notice, setNotice] = useState<"account" | "entry" | null>(null);
   const path = `/api/v1/projects/${encodeURIComponent(code)}/ledger`;
 
@@ -216,6 +217,7 @@ export function LedgerWorkspace({ code }: { code: string }) {
     try {
       const response = await fetchWithTimeout(`${path}/accounts`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify(input) });
       if (response.status === 401) { window.location.href = "/login"; return false; }
+      if (response.status === 409) { setError("accountConflict"); return false; }
       if (!response.ok) throw new Error("account save failed");
       setNotice("account"); await loadAccounts(); setPanel("accounts"); return true;
     } catch { setError("account"); return false; } finally { setBusy(null); }
@@ -231,7 +233,7 @@ export function LedgerWorkspace({ code }: { code: string }) {
     } catch { setError("entry"); return false; } finally { setBusy(null); }
   }
 
-  const accountError = error === "accountsLoad" ? m.accountLoadError : error === "account" ? m.accountSaveError : "";
+  const accountError = error === "accountsLoad" ? m.accountLoadError : error === "accountConflict" ? m.accountConflict : error === "account" ? m.accountSaveError : "";
   const entryError = error === "entriesLoad" ? m.entryLoadError : error === "entry" ? m.entrySaveError : "";
   const accountCount = useMemo(() => accounts.status === "ready" ? accounts.items.length : 0, [accounts]);
   const entryCount = useMemo(() => entries.status === "ready" ? entries.items.length : 0, [entries]);
