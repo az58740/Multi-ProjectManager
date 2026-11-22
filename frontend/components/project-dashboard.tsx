@@ -254,7 +254,7 @@ export function ProjectDashboard() {
   const modalTitle = modalMode === "create" ? t.dialogTitle : modalMode === "edit" ? t.editProjectTitle : t.projectDetails;
 
   return (
-    <main className="min-h-screen bg-cream">
+    <main className="min-h-screen bg-cream pb-24 lg:pb-0">
       <header className="border-b border-line bg-paper">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <Link href="/" className="inline-flex items-center gap-3"><BrandMark /></Link>
@@ -267,11 +267,11 @@ export function ProjectDashboard() {
         </div>
       </header>
 
-      <nav aria-label={isFa ? "منوی سریع داشبورد" : "Dashboard quick navigation"} className="sticky top-0 z-30 border-b border-line bg-paper/95 px-4 py-2 shadow-sm backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-[1440px] items-center gap-2 overflow-x-auto sm:px-2">
-          <button type="button" onClick={() => setSection("overview")} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-extrabold ${section === "overview" ? "bg-sage text-forest" : "border border-line text-muted"}`}><ClipboardList className="me-1 inline size-4" />{t.activeProjects}</button>
-          <button type="button" onClick={() => setSection("resources")} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-extrabold ${section === "resources" ? "bg-forest text-white" : "border border-line text-muted"}`}><Landmark className="me-1 inline size-4" />{isFa ? "منابع پروژه" : "Resources"}</button>
-          <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="min-h-10 shrink-0 rounded-full bg-forest px-4 text-xs font-extrabold text-white"><CirclePlus className="me-1 inline size-4" />{t.createProject}</button>
+      <nav aria-label={isFa ? "منوی سریع داشبورد" : "Dashboard quick navigation"} className="fixed inset-x-3 bottom-3 z-30 rounded-[22px] border border-line bg-paper/95 p-2 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-3 gap-1">
+          <button type="button" onClick={() => setSection("overview")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-4" />{t.activeProjects}</button>
+          <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl bg-forest text-[10px] font-extrabold text-white"><CirclePlus className="size-5" />{t.createProject}</button>
+          <button type="button" onClick={() => setSection("resources")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "resources" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-4" />{isFa ? "منابع" : "Resources"}</button>
         </div>
       </nav>
 
@@ -311,6 +311,13 @@ export function ProjectDashboard() {
                 <CirclePlus className="size-5" aria-hidden="true" />{t.createProject}
               </button>
             </div>
+          </div>
+
+          <div className="mt-6 grid gap-3 rounded-[24px] border border-line bg-paper p-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(110px,0.35fr))] sm:p-4">
+            <div className="flex items-center gap-3 rounded-2xl bg-forest px-4 py-3 text-white"><span className="grid size-9 place-items-center rounded-xl bg-white/10"><ClipboardList className="size-4" /></span><div><p className="m-0 text-[10px] font-bold uppercase tracking-[0.12em] text-white/60">{isFa ? "تمرکز امروز" : "Today focus"}</p><p className="m-0 mt-0.5 text-sm font-black">{filteredProjects.length.toLocaleString(isFa ? "fa-IR" : "en-US")} {isFa ? "پروژه در دسترس" : "projects in view"}</p></div></div>
+            <div className="rounded-2xl bg-sage px-4 py-3"><p className="m-0 text-[10px] font-bold text-muted">{t.summaryActive}</p><p className="m-0 mt-1 text-xl font-black text-forest">{counts.active.toLocaleString(isFa ? "fa-IR" : "en-US")}</p></div>
+            <div className="rounded-2xl bg-amber-soft px-4 py-3"><p className="m-0 text-[10px] font-bold text-muted">{t.summaryPlanning}</p><p className="m-0 mt-1 text-xl font-black text-forest">{counts.planning.toLocaleString(isFa ? "fa-IR" : "en-US")}</p></div>
+            <div className="rounded-2xl bg-cream px-4 py-3"><p className="m-0 text-[10px] font-bold text-muted">{t.summaryCompleted}</p><p className="m-0 mt-1 text-xl font-black text-forest">{counts.completed.toLocaleString(isFa ? "fa-IR" : "en-US")}</p></div>
           </div>
 
           {section === "resources" ? (projects.length > 0 ? <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>

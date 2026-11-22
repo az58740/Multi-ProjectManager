@@ -29,7 +29,6 @@ export function ExportOperationsWorkspace({ code }: { code: string }) {
   const path = `/api/v1/projects/${encodeURIComponent(code)}/ledger`;
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [products, setProducts] = useState<LedgerProduct[]>([]);
-  const [mode, setMode] = useState<"purchase" | "catalog">("purchase");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [productId, setProductId] = useState("");
@@ -63,7 +62,7 @@ export function ExportOperationsWorkspace({ code }: { code: string }) {
       const response = await fetchWithTimeout(`${path}/products`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ ...productForm, code: productForm.code.trim(), name: productForm.name.trim() }) });
       if (!response.ok) throw new Error("save");
       setProductForm({ code: "", name: "", itemType: "resale", unit: "kg", currency: "USD" });
-      await load(); setMessage(fa ? "کالا ثبت شد." : "Product saved."); setMode("purchase");
+      await load(); setMessage(fa ? "کالا ثبت شد." : "Product saved."); setFormModal(null);
     } catch { setMessage(fa ? "ثبت کالا انجام نشد؛ کد کالا را تکراری وارد نکنید." : "Product could not be saved; check for a duplicate code."); }
     finally { setBusy(false); }
   }
@@ -80,7 +79,7 @@ export function ExportOperationsWorkspace({ code }: { code: string }) {
         { accountId: creditAccount, currency, debitAmount: "0", creditAmount: amountNumber, functionalDebit: "0", functionalCredit: functional, exchangeRate: rateNumber, memo: fa ? "پرداخت یا حساب پرداختنی خرید" : "Purchase payment or payable" },
       ] }) }, 12_000);
       if (!response.ok) throw new Error("entry");
-      setAmount(""); setMessage(fa ? "عملیات خرید ثبت شد و سند حسابداری به‌صورت خودکار ایجاد شد." : "Purchase operation saved and its journal entry was created automatically.");
+      setAmount(""); setFormModal(null); setMessage(fa ? "عملیات خرید ثبت شد و سند حسابداری به‌صورت خودکار ایجاد شد." : "Purchase operation saved and its journal entry was created automatically.");
     } catch { setMessage(fa ? "ثبت عملیات انجام نشد. حساب‌ها و تراز ارز مبنا را بررسی کنید." : "Operation failed. Check the accounts and functional balance."); }
     finally { setBusy(false); }
   }

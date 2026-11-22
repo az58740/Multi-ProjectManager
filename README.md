@@ -402,5 +402,6 @@ build فقط compile و static generation را بررسی می‌کند. `/_heal
 - [مدل خرید، محموله و مصرف](docs/PURCHASE-SHIPMENT-SUPPLY-USAGE.md)
 - [عملیات دادهٔ production](docs/PRODUCTION-DATA-OPERATIONS.md)
 - [فهرست تصاویر](docs/ASSETS.md)
+- [اصول طراحی داشبورد با الهام از Citi Bike](docs/UI-DESIGN-CITI-BIKE-FA.md)
 - [کارهای باز](TODO.md)
 - [تصمیم‌های معماری و طراحی](plan.md)
