@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Building2, Check, CirclePlus, ClipboardList, Globe2, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, Warehouse, X } from "lucide-react";
+import { Boxes, Building2, Check, CirclePlus, ClipboardList, Globe2, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -11,13 +11,14 @@ import { ProjectDetails } from "@/components/project-details";
 import { ProjectForm } from "@/components/project-form";
 import { ProjectModal } from "@/components/project-modal";
 import { ProjectResourcesWorkspace } from "@/components/project-resources-workspace";
+import { AccountManagementWorkspace } from "@/components/account-management-workspace";
 import { fetchWithTimeout } from "@/lib/http";
 import { accountMessages } from "@/lib/account-i18n";
 import { jsonHeaders, type Session } from "@/lib/accounts";
 import { isProjectListPayload, isProjectRecord, isProjectStatus, isProjectType, PROJECT_STATUSES, PROJECT_TYPES, type Project, type ProjectStatus, type ProjectType, type ProjectWritePayload } from "@/lib/projects";
 
 type ModalMode = "create" | "edit" | "details" | null;
-type DashboardSection = "overview" | "resources";
+type DashboardSection = "overview" | "accounts" | "catalog";
 
 function typeLabel(type: ProjectType, t: ReturnType<typeof useLocale>["t"]) {
   const labels: Record<ProjectType, string> = {
@@ -267,11 +268,12 @@ export function ProjectDashboard() {
         </div>
       </header>
 
-      <nav aria-label={isFa ? "منوی سریع داشبورد" : "Dashboard quick navigation"} className="fixed inset-x-3 bottom-3 z-30 rounded-[22px] border border-line bg-paper/95 p-2 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-[1440px] grid-cols-3 gap-1">
+      <nav aria-label={isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation"} className="fixed inset-x-3 bottom-3 z-30 rounded-[24px] border border-line bg-paper/95 p-2 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-4 gap-1">
           <button type="button" onClick={() => setSection("overview")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-4" />{t.activeProjects}</button>
+          <button type="button" onClick={() => setSection("accounts")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-4" />{isFa ? "حساب‌ها" : "Accounts"}</button>
+          <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-4" />{isFa ? "کالاها" : "Catalog"}</button>
           <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl bg-forest text-[10px] font-extrabold text-white"><CirclePlus className="size-5" />{t.createProject}</button>
-          <button type="button" onClick={() => setSection("resources")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "resources" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-4" />{isFa ? "منابع" : "Resources"}</button>
         </div>
       </nav>
 
@@ -280,7 +282,8 @@ export function ProjectDashboard() {
           <div className="sticky top-7 rounded-[26px] border border-line bg-paper p-4">
             <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">{t.allProjects}</p>
             <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
-            <button type="button" onClick={() => setSection("resources")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "resources" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "منابع و کاتالوگ" : "Resources & catalog"}</button>
+            <button type="button" onClick={() => setSection("accounts")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
+            <button type="button" onClick={() => setSection("catalog")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Boxes className="size-4" aria-hidden="true" />{isFa ? "کالا و ملزومات" : "Products & supplies"}</button>
             <div className="mt-5 rounded-2xl bg-forest p-4 text-white">
               <div className="grid size-10 place-items-center rounded-[14px] bg-white/10 text-amber-light"><Globe2 className="size-5" aria-hidden="true" /></div>
               <p className="mb-0 mt-4 text-sm font-extrabold">{t.approachKicker}</p>
@@ -320,7 +323,7 @@ export function ProjectDashboard() {
             <div className="rounded-2xl bg-cream px-4 py-3"><p className="m-0 text-[10px] font-bold text-muted">{t.summaryCompleted}</p><p className="m-0 mt-1 text-xl font-black text-forest">{counts.completed.toLocaleString(isFa ? "fa-IR" : "en-US")}</p></div>
           </div>
 
-          {section === "resources" ? (projects.length > 0 ? <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
+          {section !== "overview" ? (projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />

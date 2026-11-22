@@ -1,92 +1,87 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Boxes, CirclePlus, Landmark, LoaderCircle, X } from "lucide-react";
+import { Boxes, CirclePlus, LoaderCircle, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { jsonHeaders } from "@/lib/accounts";
 import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/http";
-import { isLedgerAccountList, isLedgerProductList, type LedgerAccount, type LedgerAccountType, type LedgerProduct } from "@/lib/ledger";
+import { isLedgerProductList, type LedgerProduct } from "@/lib/ledger";
 import { ProjectModal } from "@/components/project-modal";
 import type { Project } from "@/lib/projects";
 
 const inputClass = "mt-2 min-h-11 w-full rounded-2xl border border-line bg-white px-3 text-sm font-medium text-ink outline-none transition focus:border-forest/40 focus:ring-4 focus:ring-sage/70";
 const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-forest px-5 text-sm font-extrabold text-white transition hover:bg-forest-light disabled:cursor-not-allowed disabled:opacity-60";
 const currencies = ["USD", "EUR", "AED", "TRY", "GBP", "CNY", "IRR"] as const;
-const types: Array<[LedgerAccountType, string, string]> = [["asset", "دارایی", "Asset"], ["liability", "بدهی", "Liability"], ["equity", "سرمایه", "Equity"], ["revenue", "درآمد", "Revenue"], ["expense", "هزینه", "Expense"]];
-
-type ResourceModal = "account" | "product" | null;
 
 export function ProjectResourcesWorkspace({ projects }: { projects: Project[] }) {
   const { locale } = useLocale();
   const fa = locale === "fa";
   const [projectCode, setProjectCode] = useState(projects[0]?.code ?? "");
-  const [tab, setTab] = useState<"accounts" | "products">("accounts");
-  const [modal, setModal] = useState<ResourceModal>(null);
-  const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [products, setProducts] = useState<LedgerProduct[]>([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [account, setAccount] = useState({ code: "", name: "", scope: "shared", sharedScope: "all", accountType: "asset", currency: "USD" });
+  const [modal, setModal] = useState(false);
   const [product, setProduct] = useState({ code: "", name: "", itemType: "resale", unit: "kg", currency: "USD" });
   const path = `/api/v1/projects/${encodeURIComponent(projectCode)}/ledger`;
 
-  async function load() {
+  async function loadProducts() {
     if (!projectCode) return;
-    const [accountsResponse, productsResponse] = await Promise.all([
-      fetchJsonWithTimeout(`${path}/accounts`, { cache: "no-store" }),
-      fetchJsonWithTimeout(`${path}/products`, { cache: "no-store" }),
-    ]);
-    if (!isLedgerAccountList(accountsResponse.payload) || !isLedgerProductList(productsResponse.payload)) throw new Error("invalid");
-    setAccounts(accountsResponse.payload.items);
-    setProducts(productsResponse.payload.items);
+    const response = await fetchJsonWithTimeout(`${path}/products`, { cache: "no-store" });
+    if (!isLedgerProductList(response.payload)) throw new Error("invalid");
+    setProducts(response.payload.items);
   }
 
   useEffect(() => {
-    void load().catch(() => setMessage(fa ? "دریافت حساب‌ها و کالاها انجام نشد." : "Could not load accounts and products."));
+    void loadProducts().catch(() => setMessage(fa ? "دریافت کالاها انجام نشد." : "Could not load products."));
   }, [path, fa]);
 
   function resetAndClose() {
-    setModal(null);
-    setAccount((current) => ({ ...current, code: "", name: "" }));
+    setModal(false);
     setProduct((current) => ({ ...current, code: "", name: "" }));
-  }
-
-  async function saveAccount(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setBusy(true); setMessage("");
-    const sharedScope = account.scope === "project" ? "project" : account.sharedScope;
-    try {
-      const response = await fetchWithTimeout(`${path}/accounts`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ ...account, sharedScope, code: account.code.trim().toUpperCase(), name: account.name.trim() }) });
-      if (response.status === 409) throw new Error("duplicate");
-      if (!response.ok) throw new Error("save");
-      resetAndClose(); await load(); setMessage(fa ? "حساب ثبت شد." : "Account saved.");
-    } catch (error) {
-      setMessage(error instanceof Error && error.message === "duplicate" ? (fa ? "کد حساب تکراری است." : "Account code already exists.") : (fa ? "ثبت حساب انجام نشد." : "Account could not be saved."));
-    } finally { setBusy(false); }
   }
 
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy(true); setMessage("");
+    setBusy(true);
+    setMessage("");
     try {
-      const response = await fetchWithTimeout(`${path}/products`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ ...product, code: product.code.trim().toUpperCase(), name: product.name.trim() }) });
+      const response = await fetchWithTimeout(`${path}/products`, {
+        method: "POST",
+        headers: jsonHeaders(),
+        body: JSON.stringify({ ...product, code: product.code.trim().toUpperCase(), name: product.name.trim() }),
+      });
+      if (response.status === 409) throw new Error("duplicate");
       if (!response.ok) throw new Error("save");
-      resetAndClose(); await load(); setMessage(fa ? "کالا/ملزومات ثبت شد." : "Product or supply saved.");
-    } catch { setMessage(fa ? "ثبت کالا انجام نشد." : "Product could not be saved."); }
-    finally { setBusy(false); }
+      resetAndClose();
+      await loadProducts();
+      setMessage(fa ? "کالا یا ملزومات ثبت شد." : "Product or supply saved.");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message === "duplicate" ? (fa ? "کد کالا تکراری است." : "Product code already exists.") : (fa ? "ثبت کالا انجام نشد." : "Product could not be saved."));
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const resourceModalTitle = modal === "account" ? (fa ? "ثبت بانک یا صرافی" : "Add bank or exchange") : (fa ? "تعریف کالا یا ملزومات" : "Define product or supply");
   return <>
-    <section id="resources" className="mt-6 rounded-[28px] border border-line bg-paper p-5 shadow-sm sm:p-7" aria-labelledby="resources-title">
+    <section id="catalog" className="mt-6 rounded-[28px] border border-line bg-paper p-5 shadow-sm sm:p-7" aria-labelledby="catalog-title">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div><div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.16em] text-amber"><Landmark className="size-4" aria-hidden="true" />{fa ? "منابع مشترک پروژه‌ها" : "Project resources"}</div><h2 id="resources-title" className="mb-0 mt-2 text-2xl font-black text-forest">{fa ? "حساب‌ها، صرافی‌ها و کالاها" : "Banks, exchanges and products"}</h2><p className="mb-0 mt-2 max-w-2xl text-sm leading-7 text-muted">{fa ? "منابع را از داشبورد اصلی مدیریت کنید؛ فرم ثبت با دکمهٔ عملیاتی باز می‌شود." : "Manage resources centrally; create forms open from clear action buttons."}</p></div>
-        <div className="flex flex-wrap items-end gap-2"><label className="text-xs font-bold text-muted">{fa ? "پروژهٔ مرجع" : "Reference project"}<select value={projectCode} onChange={(event) => setProjectCode(event.target.value)} className={`${inputClass} mt-1 min-w-52`} dir="ltr">{projects.map((project) => <option key={project.id} value={project.code}>{project.code} — {project.name}</option>)}</select></label><button type="button" onClick={() => setTab("accounts")} className={`min-h-10 rounded-full px-4 text-xs font-extrabold ${tab === "accounts" ? "bg-forest text-white" : "border border-line text-forest"}`}><Landmark className="me-1 inline size-3.5" />{fa ? "حساب‌ها" : "Accounts"}</button><button type="button" onClick={() => setTab("products")} className={`min-h-10 rounded-full px-4 text-xs font-extrabold ${tab === "products" ? "bg-forest text-white" : "border border-line text-forest"}`}><Boxes className="me-1 inline size-3.5" />{fa ? "کالاها" : "Products"}</button></div>
+        <div>
+          <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.16em] text-amber"><Boxes className="size-4" aria-hidden="true" />{fa ? "مدیریت کالا و ملزومات" : "Products & supplies"}</div>
+          <h2 id="catalog-title" className="mb-0 mt-2 text-2xl font-black text-forest">{fa ? "کالاها و ملزومات عملیاتی" : "Products and operational supplies"}</h2>
+          <p className="mb-0 mt-2 max-w-2xl text-sm leading-7 text-muted">{fa ? "کالاهای قابل‌فروش و ملزومات مصرفی را در کاتالوگ مرکزی تعریف کنید." : "Define resale products and operational supplies in the central catalog."}</p>
+        </div>
+        <label className="text-xs font-bold text-muted">{fa ? "پروژهٔ مرجع" : "Reference project"}
+          <select value={projectCode} onChange={(event) => setProjectCode(event.target.value)} className={`${inputClass} mt-1 min-w-52`} dir="ltr">
+            {projects.map((project) => <option key={project.id} value={project.code}>{project.code} — {project.name}</option>)}
+          </select>
+        </label>
       </div>
       {message && <p role="status" className="mt-5 rounded-2xl border border-sage-dark bg-sage px-4 py-3 text-sm font-bold text-forest">{message}</p>}
-      <div className="mt-6 flex flex-wrap gap-3"><button type="button" onClick={() => { setTab("accounts"); setModal("account"); }} className={buttonClass}><CirclePlus className="size-4" />{fa ? "ثبت حساب بانکی/صرافی" : "Add bank/exchange"}</button><button type="button" onClick={() => { setTab("products"); setModal("product"); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-sage-dark bg-sage px-5 text-sm font-extrabold text-forest transition hover:bg-sage-dark"><CirclePlus className="size-4" />{fa ? "تعریف کالا/ملزومات" : "Add product/supply"}</button></div>
-      {tab === "accounts" ? <div className="mt-6 grid gap-3 sm:grid-cols-2">{accounts.length ? accounts.map((item) => <article key={item.id} className="rounded-2xl border border-line bg-cream/50 p-4"><div className="flex items-start justify-between gap-3"><div><p dir="ltr" className="m-0 font-mono text-xs font-black text-forest">{item.code}</p><h3 className="mb-0 mt-2 text-sm font-black text-ink">{item.name}</h3></div><span className="rounded-full bg-sage px-2.5 py-1 text-[11px] font-bold text-forest">{item.scope === "shared" ? (fa ? "مشترک" : "Shared") : (fa ? "پروژه" : "Project")}</span></div><p className="mb-0 mt-3 text-xs text-muted" dir="ltr">{item.currency} · {item.sharedScope}</p></article>) : <p className="rounded-2xl border border-dashed border-sage-dark p-6 text-sm text-muted">{fa ? "حسابی برای این پروژه/دامنه ثبت نشده است." : "No accounts for this project or scope yet."}</p>}</div> : <div className="mt-6 grid gap-3 sm:grid-cols-2">{products.length ? products.map((item) => <article key={item.id} className="rounded-2xl border border-line bg-cream/50 p-4"><p dir="ltr" className="m-0 font-mono text-xs font-black text-forest">{item.code}</p><h3 className="mb-0 mt-2 text-sm font-black text-ink">{item.name}</h3><p className="mb-0 mt-3 text-xs text-muted">{item.itemType === "resale" ? (fa ? "کالای قابل‌فروش/صادراتی" : "Resale/export") : (fa ? "ملزومات مصرفی" : "Operational supply")} · {item.unit} · {item.currency}</p></article>) : <p className="rounded-2xl border border-dashed border-sage-dark p-6 text-sm text-muted">{fa ? "کالایی ثبت نشده است." : "No products yet."}</p>}</div>}
+      <div className="mt-6 flex flex-wrap gap-3"><button type="button" onClick={() => setModal(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-sage-dark bg-sage px-5 text-sm font-extrabold text-forest transition hover:bg-sage-dark"><CirclePlus className="size-4" />{fa ? "تعریف کالا/ملزومات" : "Add product/supply"}</button></div>
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        {products.length ? products.map((item) => <article key={item.id} className="rounded-2xl border border-line bg-cream/50 p-4"><p dir="ltr" className="m-0 font-mono text-xs font-black text-forest">{item.code}</p><h3 className="mb-0 mt-2 text-sm font-black text-ink">{item.name}</h3><p className="mb-0 mt-3 text-xs text-muted">{item.itemType === "resale" ? (fa ? "کالای قابل‌فروش/صادراتی" : "Resale/export") : (fa ? "ملزومات مصرفی" : "Operational supply")} · {item.unit} · {item.currency}</p></article>) : <p className="rounded-2xl border border-dashed border-sage-dark p-6 text-sm text-muted">{fa ? "کالایی ثبت نشده است." : "No products yet."}</p>}
+      </div>
     </section>
-    {modal && <ProjectModal title={resourceModalTitle} onClose={() => { if (!busy) setModal(null); }}><button type="button" onClick={() => { if (!busy) setModal(null); }} className="sr-only" aria-label={fa ? "بستن فرم" : "Close form"}><X /></button>{modal === "account" ? <form onSubmit={(event) => void saveAccount(event)} className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold">{fa ? "کد" : "Code"}<input required value={account.code} onChange={(event) => setAccount({ ...account, code: event.target.value })} className={inputClass} dir="ltr" /></label><label className="text-xs font-bold">{fa ? "ارز" : "Currency"}<select value={account.currency} onChange={(event) => setAccount({ ...account, currency: event.target.value })} className={inputClass} dir="ltr">{currencies.map((item) => <option key={item}>{item}</option>)}</select></label></div><label className="block text-xs font-bold">{fa ? "نام" : "Name"}<input required value={account.name} onChange={(event) => setAccount({ ...account, name: event.target.value })} className={inputClass} /></label><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold">{fa ? "نوع حساب" : "Account type"}<select value={account.accountType} onChange={(event) => setAccount({ ...account, accountType: event.target.value })} className={inputClass}>{types.map(([value, faLabel, enLabel]) => <option key={value} value={value}>{fa ? faLabel : enLabel}</option>)}</select></label><label className="text-xs font-bold">{fa ? "دامنه" : "Scope"}<select value={account.scope} onChange={(event) => setAccount({ ...account, scope: event.target.value })} className={inputClass}><option value="shared">{fa ? "مشترک" : "Shared"}</option><option value="project">{fa ? "فقط پروژهٔ مرجع" : "Reference project"}</option></select></label></div>{account.scope === "shared" && <label className="block text-xs font-bold">{fa ? "مشترک برای" : "Shared for"}<select value={account.sharedScope} onChange={(event) => setAccount({ ...account, sharedScope: event.target.value })} className={inputClass}><option value="all">{fa ? "همهٔ پروژه‌ها" : "All projects"}</option><option value="export">{fa ? "پروژه‌های صادرات" : "Export projects"}</option><option value="construction">{fa ? "پروژه‌های ساخت‌وساز" : "Construction projects"}</option><option value="cold-storage">{fa ? "پروژه‌های سردخانه" : "Cold-storage projects"}</option><option value="sorting">{fa ? "پروژه‌های سورتینگ" : "Sorting projects"}</option><option value="rental">{fa ? "پروژه‌های املاک" : "Rental projects"}</option><option value="other">{fa ? "سایر پروژه‌ها" : "Other projects"}</option></select></label>}<div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setModal(null)} className="min-h-11 rounded-full border border-line px-5 text-sm font-bold text-muted">{fa ? "انصراف" : "Cancel"}</button><button disabled={busy || !projectCode} className={buttonClass}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت حساب" : "Save account"}</button></div></form> : <form onSubmit={(event) => void saveProduct(event)} className="space-y-4"><label className="block text-xs font-bold">{fa ? "کد کالا" : "SKU"}<input required value={product.code} onChange={(event) => setProduct({ ...product, code: event.target.value })} className={inputClass} dir="ltr" /></label><label className="block text-xs font-bold">{fa ? "نام" : "Name"}<input required value={product.name} onChange={(event) => setProduct({ ...product, name: event.target.value })} className={inputClass} /></label><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold">{fa ? "نوع" : "Type"}<select value={product.itemType} onChange={(event) => setProduct({ ...product, itemType: event.target.value })} className={inputClass}><option value="resale">{fa ? "قابل‌فروش / صادراتی" : "Resale / export"}</option><option value="supply">{fa ? "ملزومات مصرفی" : "Operational supply"}</option></select></label><label className="text-xs font-bold">{fa ? "واحد" : "Unit"}<input required value={product.unit} onChange={(event) => setProduct({ ...product, unit: event.target.value })} className={inputClass} /></label></div><label className="block text-xs font-bold">{fa ? "ارز" : "Currency"}<select value={product.currency} onChange={(event) => setProduct({ ...product, currency: event.target.value })} className={inputClass} dir="ltr">{currencies.map((item) => <option key={item}>{item}</option>)}</select></label><div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setModal(null)} className="min-h-11 rounded-full border border-line px-5 text-sm font-bold text-muted">{fa ? "انصراف" : "Cancel"}</button><button disabled={busy || !projectCode} className={buttonClass}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت کالا" : "Save product"}</button></div></form>}</ProjectModal>}
+    {modal && <ProjectModal title={fa ? "تعریف کالا یا ملزومات" : "Define product or supply"} onClose={() => { if (!busy) setModal(false); }}><button type="button" onClick={() => { if (!busy) setModal(false); }} className="sr-only" aria-label={fa ? "بستن فرم" : "Close form"}><X /></button><form onSubmit={(event) => void saveProduct(event)} className="space-y-4"><label className="block text-xs font-bold">{fa ? "کد کالا" : "SKU"}<input required value={product.code} onChange={(event) => setProduct({ ...product, code: event.target.value })} className={inputClass} dir="ltr" /></label><label className="block text-xs font-bold">{fa ? "نام" : "Name"}<input required value={product.name} onChange={(event) => setProduct({ ...product, name: event.target.value })} className={inputClass} /></label><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold">{fa ? "نوع" : "Type"}<select value={product.itemType} onChange={(event) => setProduct({ ...product, itemType: event.target.value })} className={inputClass}><option value="resale">{fa ? "قابل‌فروش / صادراتی" : "Resale / export"}</option><option value="supply">{fa ? "ملزومات مصرفی" : "Operational supply"}</option></select></label><label className="text-xs font-bold">{fa ? "واحد" : "Unit"}<input required value={product.unit} onChange={(event) => setProduct({ ...product, unit: event.target.value })} className={inputClass} /></label></div><label className="block text-xs font-bold">{fa ? "ارز" : "Currency"}<select value={product.currency} onChange={(event) => setProduct({ ...product, currency: event.target.value })} className={inputClass} dir="ltr">{currencies.map((item) => <option key={item}>{item}</option>)}</select></label><div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setModal(false)} className="min-h-11 rounded-full border border-line px-5 text-sm font-bold text-muted">{fa ? "انصراف" : "Cancel"}</button><button disabled={busy || !projectCode} className={buttonClass}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت کالا" : "Save product"}</button></div></form></ProjectModal>}
   </>;
 }
