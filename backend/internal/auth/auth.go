@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/mail"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -26,10 +27,11 @@ const maxBody = 8192
 const limitWindow = 15 * time.Minute
 
 type Auth struct {
-	store        Store
-	publicOrigin string
-	secure       bool
-	dummyHash    []byte
+	store         Store
+	publicOrigin  string
+	allowedOrigins map[string]struct{}
+	secure        bool
+	dummyHash     []byte
 }
 type userContextKey struct{}
 
@@ -49,7 +51,15 @@ func New(store Store, origin string, production bool) (*Auth, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Auth{store: store, publicOrigin: normalized, secure: strings.HasPrefix(normalized, "https://"), dummyHash: dummy}, nil
+	allowedOrigins := map[string]struct{}{normalized: struct{}{}}
+	if production {
+		for _, host := range []string{os.Getenv("VERCEL_URL"), os.Getenv("VERCEL_PROJECT_PRODUCTION_URL")} {
+			if deploymentOrigin, e := parseOrigin("https://" + strings.TrimSpace(host)); e == nil {
+				allowedOrigins[deploymentOrigin] = struct{}{}
+			}
+		}
+	}
+	return &Auth{store: store, publicOrigin: normalized, allowedOrigins: allowedOrigins, secure: strings.HasPrefix(normalized, "https://"), dummyHash: dummy}, nil
 }
 func (a *Auth) Bootstrap(ctx context.Context, email, password string) (bool, error) {
 	if email == "" && password == "" {
@@ -95,19 +105,23 @@ func (a *Auth) RequireSameOrigin(next http.Handler) http.Handler {
 			return
 		}
 		origin, err := parseOrigin(r.Header.Get("Origin"))
-		if err != nil || origin != a.publicOrigin {
+			if err != nil || !a.isAllowedOrigin(origin) {
 			writeError(w, http.StatusForbidden, "مبدأ درخواست معتبر نیست.")
 			return
 		}
 		if x := r.Header.Get("X-App-Origin"); x != "" {
 			v, e := parseOrigin(x)
-			if e != nil || v != a.publicOrigin {
+				if e != nil || !a.isAllowedOrigin(v) {
 				writeError(w, http.StatusForbidden, "مبدأ درخواست معتبر نیست.")
 				return
 			}
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+func (a *Auth) isAllowedOrigin(origin string) bool {
+	_, ok := a.allowedOrigins[origin]
+	return ok
 }
 func (a *Auth) CurrentUser(r *http.Request) (User, error) {
 	c, err := r.Cookie(sessionCookieName)
