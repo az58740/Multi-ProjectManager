@@ -278,10 +278,11 @@ export function ProjectDashboard() {
       </header>
 
       <nav aria-label={isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation"} className="fixed inset-x-3 bottom-3 z-30 rounded-[24px] border border-line bg-paper/95 p-2 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-[1440px] grid-cols-3 gap-1">
+        <div className={`mx-auto grid max-w-[1440px] ${isAdmin ? "grid-cols-4" : "grid-cols-3"} gap-1`}>
           <button type="button" onClick={() => setSection("overview")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-4" />{t.activeProjects}</button>
           <button type="button" onClick={() => setSection("accounts")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-4" />{isFa ? "حساب‌ها" : "Accounts"}</button>
           <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-4" />{isFa ? "کالاها" : "Catalog"}</button>
+          {isAdmin && <Link href="/dashboard/users" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold text-muted"><Users className="size-4" />{m.users}</Link>}
         </div>
       </nav>
 
@@ -292,6 +293,7 @@ export function ProjectDashboard() {
             <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
             <button type="button" onClick={() => setSection("accounts")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
             <button type="button" onClick={() => setSection("catalog")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Boxes className="size-4" aria-hidden="true" />{isFa ? "کالا و ملزومات" : "Products & supplies"}</button>
+            {isAdmin && <Link href="/dashboard/users" className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
             <div className="mt-5 rounded-2xl bg-forest p-4 text-white">
               <div className="grid size-10 place-items-center rounded-[14px] bg-white/10 text-amber-light"><Globe2 className="size-5" aria-hidden="true" /></div>
               <p className="mb-0 mt-4 text-sm font-extrabold">{t.approachKicker}</p>
@@ -364,14 +366,15 @@ export function ProjectDashboard() {
                 return (
                   <article key={project.id} className="group overflow-hidden rounded-[22px] border border-line bg-paper transition duration-300 hover:-translate-y-0.5 hover:border-sage-dark hover:shadow-lg hover:shadow-forest/5">
                     <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.name}`} className="block w-full text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark">
-                      <div className={`${typeStyle.header} flex min-h-[82px] items-center justify-between gap-3 px-4 py-3 text-white`}>
+                      <div className={`${typeStyle.header} flex min-h-[62px] items-center justify-between gap-3 px-4 py-3 text-white`}>
                         <div className="flex min-w-0 items-center gap-3">
                           <span className={`grid size-10 shrink-0 place-items-center rounded-2xl ${typeStyle.icon}`}><TypeIcon type={validType} className="size-5" /></span>
-                          <div className="min-w-0"><p className="mb-0 truncate text-sm font-black leading-5">{project.name}</p><p className="mb-0 mt-0.5 truncate text-[11px] font-semibold text-white/75">{typeLabel(validType, t)}</p></div>
+                          <p className="mb-0 truncate text-sm font-black leading-5">{typeLabel(validType, t)}</p>
                         </div>
                         <span className="shrink-0 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm">{statusLabel(project.status, t)}</span>
                       </div>
                       <div className="p-3.5">
+                        <h2 className="mb-3 break-words text-base font-black leading-6 text-forest">{project.name}</h2>
                         <div className="space-y-1 text-[11px] text-muted">
                         <div className="flex items-center gap-2"><MapPin className="size-4 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.location || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectLocation}</span></div>
                         <div className="hidden items-center gap-2 sm:flex"><MapPin className="size-3.5 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.destination || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectDestination}</span></div>
