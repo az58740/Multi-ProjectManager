@@ -269,11 +269,10 @@ export function ProjectDashboard() {
       </header>
 
       <nav aria-label={isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation"} className="fixed inset-x-3 bottom-3 z-30 rounded-[24px] border border-line bg-paper/95 p-2 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-[1440px] grid-cols-4 gap-1">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-3 gap-1">
           <button type="button" onClick={() => setSection("overview")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-4" />{t.activeProjects}</button>
           <button type="button" onClick={() => setSection("accounts")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-4" />{isFa ? "حساب‌ها" : "Accounts"}</button>
           <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-4" />{isFa ? "کالاها" : "Catalog"}</button>
-          <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl bg-forest text-[10px] font-extrabold text-white"><CirclePlus className="size-5" />{t.createProject}</button>
         </div>
       </nav>
 
@@ -302,26 +301,19 @@ export function ProjectDashboard() {
               <button type="button" onClick={() => setNotice("")} className="ms-auto rounded-full p-1 hover:bg-white/70" aria-label={t.close}><X className="size-4" aria-hidden="true" /></button>
             </div>
           )}
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-amber">{t.dashboardKicker}</span>
-              <h1 className="m-0 mt-2 text-3xl font-black tracking-tight text-forest sm:text-4xl">{t.dashboardTitle}</h1>
-              <p className="mb-0 mt-2 text-sm leading-7 text-muted">{t.dashboardSubtitle}</p>
+          {section === "overview" && <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-amber">{t.dashboardKicker}</span>
+              <h1 className="m-0 mt-1 text-2xl font-black tracking-tight text-forest sm:text-4xl">{isFa ? "مدیریت یکپارچه پروژه‌های شما" : "Your unified project management"}</h1>
+              <p className="mb-0 mt-1 hidden text-sm leading-7 text-muted sm:block">{t.dashboardSubtitle}</p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              {isAdmin && <Link href="/dashboard/users" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-sage-dark bg-paper px-5 text-sm font-extrabold text-forest transition hover:bg-sage"><Users className="size-5" aria-hidden="true" />{m.users}</Link>}
-              <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-forest px-5 text-sm font-extrabold text-white shadow-md shadow-forest/10 transition hover:-translate-y-0.5 hover:bg-forest-light">
-                <CirclePlus className="size-5" aria-hidden="true" />{t.createProject}
+            <div className="flex shrink-0 items-center gap-2">
+              {isAdmin && <Link href="/dashboard/users" className="hidden min-h-11 items-center justify-center gap-2 rounded-full border border-sage-dark bg-paper px-4 text-sm font-extrabold text-forest transition hover:bg-sage sm:inline-flex"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
+              <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-forest px-4 text-xs font-extrabold text-white shadow-md shadow-forest/10 transition hover:-translate-y-0.5 hover:bg-forest-light sm:px-5 sm:text-sm">
+                <CirclePlus className="size-4" aria-hidden="true" />{t.createProject}
               </button>
             </div>
-          </div>
-
-          <div className="mt-6 grid gap-3 rounded-[24px] border border-line bg-paper p-3 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(110px,0.35fr))] sm:p-4">
-            <div className="flex items-center gap-3 rounded-2xl bg-forest px-4 py-3 text-white"><span className="grid size-9 place-items-center rounded-xl bg-white/10"><ClipboardList className="size-4" /></span><div><p className="m-0 text-[10px] font-bold uppercase tracking-[0.12em] text-white/60">{isFa ? "تمرکز امروز" : "Today focus"}</p><p className="m-0 mt-0.5 text-sm font-black">{filteredProjects.length.toLocaleString(isFa ? "fa-IR" : "en-US")} {isFa ? "پروژه در دسترس" : "projects in view"}</p></div></div>
-            <div className="rounded-2xl bg-sage px-4 py-3"><p className="m-0 text-[10px] font-bold text-muted">{t.summaryActive}</p><p className="m-0 mt-1 text-xl font-black text-forest">{counts.active.toLocaleString(isFa ? "fa-IR" : "en-US")}</p></div>
-            <div className="rounded-2xl bg-amber-soft px-4 py-3"><p className="m-0 text-[10px] font-bold text-muted">{t.summaryPlanning}</p><p className="m-0 mt-1 text-xl font-black text-forest">{counts.planning.toLocaleString(isFa ? "fa-IR" : "en-US")}</p></div>
-            <div className="rounded-2xl bg-cream px-4 py-3"><p className="m-0 text-[10px] font-bold text-muted">{t.summaryCompleted}</p><p className="m-0 mt-1 text-xl font-black text-forest">{counts.completed.toLocaleString(isFa ? "fa-IR" : "en-US")}</p></div>
-          </div>
+          </div>}
 
           {section !== "overview" ? (projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
@@ -361,7 +353,7 @@ export function ProjectDashboard() {
               {filteredProjects.map((project) => {
                 const validType: ProjectType = isProjectType(project.type) ? project.type : "other";
                 return (
-                  <article key={project.id} className="group rounded-2xl border border-line bg-paper transition duration-300 hover:-translate-y-0.5 hover:border-sage-dark hover:shadow-lg hover:shadow-forest/5">
+                  <article key={project.id} className="group overflow-hidden rounded-[22px] border border-line bg-paper transition duration-300 hover:-translate-y-0.5 hover:border-sage-dark hover:shadow-lg hover:shadow-forest/5">
                     <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.code} — ${project.name}`} className="block w-full rounded-2xl p-3.5 text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
@@ -372,9 +364,9 @@ export function ProjectDashboard() {
                           {statusLabel(project.status, t)}
                         </span>
                       </div>
-                      <h2 className="mb-0 mt-3 line-clamp-1 text-sm font-extrabold leading-6 text-forest">{project.name}</h2>
+                      <h2 className="mb-0 mt-2 line-clamp-1 text-sm font-extrabold leading-6 text-forest">{project.name}</h2>
                       <p className="mb-0 mt-0.5 text-[11px] font-semibold text-muted">{typeLabel(validType, t)}</p>
-                      <div className="mt-3 space-y-1.5 border-t border-line pt-3 text-[11px] text-muted">
+                      <div className="mt-2 space-y-1 border-t border-line pt-2 text-[11px] text-muted">
                         <div className="flex items-center gap-2"><MapPin className="size-4 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.location || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectLocation}</span></div>
                         <div className="hidden items-center gap-2 sm:flex"><MapPin className="size-3.5 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.destination || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectDestination}</span></div>
                         <div className="hidden items-center gap-2 xl:flex"><span className="grid size-3.5 shrink-0 place-items-center rounded-full bg-sage text-[8px] font-black text-forest">{(project.manager || "?").slice(0, 1)}</span><span className="truncate">{project.manager || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectManager}</span></div>
@@ -390,7 +382,7 @@ export function ProjectDashboard() {
         </section>
       </div>
 
-      <footer className="border-t border-line bg-paper">
+      {section === "overview" && <footer className="border-t border-line bg-paper">
         <div className="mx-auto max-w-[1440px] px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
           <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
             {[
@@ -407,7 +399,7 @@ export function ProjectDashboard() {
             ))}
           </div>
         </div>
-      </footer>
+      </footer>}
 
       {modalMode && (
         <ProjectModal title={modalTitle} onClose={closeModal}>

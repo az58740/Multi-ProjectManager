@@ -110,9 +110,9 @@ function AccountForm({ busy, onSave, message }: { busy: boolean; onSave: (input:
 function AccountCard({ account }: { account: LedgerAccount }) {
   const { locale } = useLocale();
   const m = ledgerMessages[locale];
-  return <article className="rounded-2xl border border-line bg-white p-4">
-    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p dir="ltr" className="m-0 break-all font-mono text-xs font-black text-forest">{account.code}</p><h3 className="mb-0 mt-2 break-words text-sm font-black text-ink">{account.name}</h3></div><span className="shrink-0 rounded-full bg-sage px-2.5 py-1 text-xs font-bold text-forest">{account.scope === "shared" ? m.shared : m.project}</span></div>
-    <div className="mt-4 flex flex-wrap gap-2 text-xs"><span className="rounded-full bg-cream px-2.5 py-1 font-bold text-muted">{m[account.accountType]}</span><span dir="ltr" className="rounded-full bg-cream px-2.5 py-1 font-bold text-muted">{account.currency}</span>{account.scope === "shared" && <span className="rounded-full bg-amber-soft px-2.5 py-1 font-bold text-[#735722]">{m[`${account.sharedScope}Projects` as keyof typeof m] ?? account.sharedScope}</span>}</div>
+  return <article className="group rounded-[20px] border border-line bg-white p-3.5 transition hover:-translate-y-0.5 hover:border-sage-dark hover:shadow-md hover:shadow-forest/5">
+    <div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-2.5"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sage text-forest"><WalletCards className="size-4" aria-hidden="true" /></span><div className="min-w-0"><p dir="ltr" className="m-0 break-all font-mono text-[10px] font-black text-forest">{account.code}</p><h3 className="mb-0 mt-1 break-words text-sm font-black leading-5 text-ink">{account.name}</h3></div></div><span className="shrink-0 rounded-full bg-sage px-2 py-1 text-[10px] font-bold text-forest">{account.scope === "shared" ? m.shared : m.project}</span></div>
+    <div className="mt-3 flex flex-wrap gap-1.5 text-[10px]"><span className="rounded-full bg-cream px-2 py-1 font-bold text-muted">{m[account.accountType]}</span><span dir="ltr" className="rounded-full bg-cream px-2 py-1 font-bold text-muted">{account.currency}</span>{account.scope === "shared" && <span className="rounded-full bg-amber-soft px-2 py-1 font-bold text-[#735722]">{m[`${account.sharedScope}Projects` as keyof typeof m] ?? account.sharedScope}</span>}</div>
   </article>;
 }
 
