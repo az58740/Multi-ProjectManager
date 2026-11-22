@@ -9,6 +9,8 @@ export type LedgerAccount = {
   projectId: string;
   code: string;
   name: string;
+  accountNumber: string;
+  bankName: string;
   accountType: LedgerAccountType;
   currency: string;
   isActive: boolean;
@@ -23,6 +25,17 @@ export type LedgerProduct = {
   itemType: "resale" | "supply";
   unit: string;
   currency: string;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type LedgerExchange = {
+  id: string;
+  projectId: string;
+  name: string;
+  address: string;
+  primaryPhone: string;
+  secondaryPhone: string;
   isActive: boolean;
   createdAt: string;
 };
@@ -62,6 +75,7 @@ export function isLedgerAccount(value: unknown): value is LedgerAccount {
   if (!record(value)) return false;
   return typeof value.id === "string" && accountScopes.includes(value.scope as LedgerAccountScope)
     && sharedScopes.includes(value.sharedScope as LedgerSharedScope) && typeof value.projectId === "string" && typeof value.code === "string" && typeof value.name === "string"
+    && typeof value.accountNumber === "string" && typeof value.bankName === "string"
     && accountTypes.includes(value.accountType as LedgerAccountType) && typeof value.currency === "string"
     && typeof value.isActive === "boolean" && typeof value.createdAt === "string";
 }
@@ -85,6 +99,13 @@ export function isLedgerAccountList(value: unknown): value is { items: LedgerAcc
 
 export function isLedgerProductList(value: unknown): value is { items: LedgerProduct[] } {
 	return record(value) && Array.isArray(value.items) && value.items.every((item) => record(item) && typeof item.id === "string" && typeof item.projectId === "string" && typeof item.code === "string" && typeof item.name === "string" && (item.itemType === "resale" || item.itemType === "supply") && typeof item.unit === "string" && typeof item.currency === "string" && typeof item.isActive === "boolean" && typeof item.createdAt === "string");
+}
+
+export function isLedgerExchangeList(value: unknown): value is { items: LedgerExchange[] } {
+  return record(value) && Array.isArray(value.items) && value.items.every((item) => record(item)
+    && typeof item.id === "string" && typeof item.projectId === "string" && typeof item.name === "string"
+    && typeof item.address === "string" && typeof item.primaryPhone === "string" && typeof item.secondaryPhone === "string"
+    && typeof item.isActive === "boolean" && typeof item.createdAt === "string");
 }
 
 export function isJournalEntryList(value: unknown): value is { items: JournalEntry[] } {

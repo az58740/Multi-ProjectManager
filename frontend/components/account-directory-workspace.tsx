@@ -1,0 +1,68 @@
+"use client";
+
+import { useEffect, useState, type FormEvent } from "react";
+import { Landmark, LoaderCircle, MapPin, Phone, Plus, RefreshCw } from "lucide-react";
+import { useLocale } from "@/app/providers";
+import { jsonHeaders } from "@/lib/accounts";
+import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/http";
+import { isLedgerAccountList, isLedgerExchangeList, type LedgerAccount, type LedgerExchange } from "@/lib/ledger";
+import type { Project } from "@/lib/projects";
+
+const inputClass = "mt-1 min-h-11 w-full rounded-2xl border border-line bg-white px-3 text-sm font-medium text-ink outline-none transition focus:border-forest/40 focus:ring-4 focus:ring-sage/70";
+const buttonClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-forest px-5 text-sm font-extrabold text-white transition hover:bg-forest-light disabled:cursor-not-allowed disabled:opacity-60";
+const banks = ["بانک ملی ایران", "بانک ملت", "بانک صادرات ایران", "بانک تجارت", "بانک پاسارگاد", "بانک سامان", "بانک پارسیان", "بانک اقتصاد نوین", "سایر"];
+
+export function AccountDirectoryWorkspace({ projects }: { projects: Project[] }) {
+  const { locale } = useLocale();
+  const fa = locale === "fa";
+  const [projectCode, setProjectCode] = useState(projects[0]?.code ?? "");
+  const [tab, setTab] = useState<"accounts" | "exchanges">("accounts");
+  const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
+  const [exchanges, setExchanges] = useState<LedgerExchange[]>([]);
+  const [accountForm, setAccountForm] = useState({ name: "", accountNumber: "", bankName: banks[0], currency: "USD" });
+  const [exchangeForm, setExchangeForm] = useState({ name: "", address: "", primaryPhone: "", secondaryPhone: "" });
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const path = `/api/v1/projects/${encodeURIComponent(projectCode)}/ledger`;
+
+  async function load() {
+    if (!projectCode) return;
+    const [accountResponse, exchangeResponse] = await Promise.all([
+      fetchJsonWithTimeout(`${path}/accounts`, { cache: "no-store" }),
+      fetchJsonWithTimeout(`${path}/exchanges`, { cache: "no-store" }),
+    ]);
+    if (!isLedgerAccountList(accountResponse.payload) || !isLedgerExchangeList(exchangeResponse.payload)) throw new Error("invalid");
+    setAccounts(accountResponse.payload.items);
+    setExchanges(exchangeResponse.payload.items);
+  }
+  useEffect(() => { void load().catch(() => setMessage(fa ? "دریافت اطلاعات انجام نشد." : "Could not load the directory.")); }, [path, fa]);
+
+  async function submit(event: FormEvent<HTMLFormElement>, kind: "account" | "exchange") {
+    event.preventDefault();
+    setBusy(true); setMessage("");
+    try {
+      const body = kind === "account"
+        ? { ...accountForm, scope: "project", sharedScope: "project", accountType: "asset" }
+        : exchangeForm;
+      const response = await fetchWithTimeout(`${path}/${kind === "account" ? "accounts" : "exchanges"}`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
+      if (!response.ok) throw new Error(response.status === 409 ? "duplicate" : "save");
+      if (kind === "account") setAccountForm({ name: "", accountNumber: "", bankName: banks[0], currency: "USD" });
+      else setExchangeForm({ name: "", address: "", primaryPhone: "", secondaryPhone: "" });
+      await load();
+      setMessage(fa ? (kind === "account" ? "حساب با موفقیت ثبت شد." : "صرافی با موفقیت ثبت شد.") : (kind === "account" ? "Account saved." : "Exchange saved."));
+    } catch (error) {
+      setMessage(error instanceof Error && error.message === "duplicate" ? (fa ? "این مورد قبلاً ثبت شده است." : "This item already exists.") : (fa ? "ثبت اطلاعات انجام نشد." : "Could not save the information."));
+    } finally { setBusy(false); }
+  }
+
+  return <section className="mt-6 rounded-[28px] border border-line bg-paper p-4 shadow-sm sm:p-7">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div><div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.14em] text-amber"><Landmark className="size-4" />{fa ? "دفتر حساب‌ها" : "Account directory"}</div><h2 className="mb-0 mt-2 text-xl font-black leading-tight text-forest">{fa ? "حساب‌ها و صرافی‌ها" : "Accounts & exchanges"}</h2><p className="mb-0 mt-1 text-sm leading-6 text-muted">{fa ? "تعریف اطلاعات پایه، جدا از ثبت تراکنش‌ها." : "Define master data separately from transactions."}</p></div>
+      <label className="text-xs font-bold text-muted">{fa ? "پروژه" : "Project"}<select value={projectCode} onChange={(event) => setProjectCode(event.target.value)} className={`${inputClass} min-w-48`} dir="ltr">{projects.map((project) => <option key={project.id} value={project.code}>{project.code} — {project.name}</option>)}</select></label>
+    </div>
+    {message && <p role="status" className="mt-4 rounded-2xl border border-sage-dark bg-sage px-4 py-3 text-sm font-bold text-forest">{message}</p>}
+    <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-cream p-1"><button type="button" onClick={() => setTab("accounts")} className={`min-h-11 rounded-xl text-sm font-extrabold ${tab === "accounts" ? "bg-white text-forest shadow-sm" : "text-muted"}`}>{fa ? `حساب‌ها (${accounts.length})` : `Accounts (${accounts.length})`}</button><button type="button" onClick={() => setTab("exchanges")} className={`min-h-11 rounded-xl text-sm font-extrabold ${tab === "exchanges" ? "bg-white text-forest shadow-sm" : "text-muted"}`}>{fa ? `صرافی‌ها (${exchanges.length})` : `Exchanges (${exchanges.length})`}</button></div>
+    {tab === "accounts" ? <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]"><div className="grid gap-3 sm:grid-cols-2">{accounts.length ? accounts.map((account) => <article key={account.id} className="rounded-[22px] border border-line bg-cream/50 p-4"><div className="flex items-start justify-between gap-2"><span className="grid size-9 place-items-center rounded-xl bg-sage text-forest"><Landmark className="size-4" /></span><span dir="ltr" className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-black text-forest">{account.code}</span></div><h3 className="mb-0 mt-3 text-sm font-black text-ink">{account.name}</h3><p className="mb-0 mt-1 text-xs text-muted">{account.bankName || (fa ? "بانک ثبت نشده" : "Bank not specified")}</p><div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-bold text-muted"><span dir="ltr" className="rounded-full bg-white px-2 py-1">{account.accountNumber || "—"}</span><span dir="ltr" className="rounded-full bg-white px-2 py-1">{account.currency}</span><span className="rounded-full bg-white px-2 py-1">{account.scope === "shared" ? (fa ? "مشترک" : "Shared") : (fa ? "پروژه" : "Project")}</span></div></article>) : <p className="rounded-2xl border border-dashed border-sage-dark p-6 text-sm text-muted">{fa ? "هنوز حسابی ثبت نشده است." : "No accounts yet."}</p>}</div><form onSubmit={(event) => void submit(event, "account")} className="rounded-[22px] border border-sage-dark bg-sage/50 p-4"><h3 className="mb-0 text-sm font-black text-forest"><Plus className="me-1 inline size-4" />{fa ? "تعریف حساب جدید" : "Define account"}</h3><div className="mt-4 space-y-3"><label className="block text-xs font-bold">{fa ? "نام حساب" : "Account name"}<input required value={accountForm.name} onChange={(event) => setAccountForm({ ...accountForm, name: event.target.value })} className={inputClass} /></label><label className="block text-xs font-bold">{fa ? "شماره حساب" : "Account number"}<input required value={accountForm.accountNumber} onChange={(event) => setAccountForm({ ...accountForm, accountNumber: event.target.value })} className={inputClass} dir="ltr" /></label><label className="block text-xs font-bold">{fa ? "بانک" : "Bank"}<select value={accountForm.bankName} onChange={(event) => setAccountForm({ ...accountForm, bankName: event.target.value })} className={inputClass}>{banks.map((bank) => <option key={bank}>{bank}</option>)}</select></label><label className="block text-xs font-bold">{fa ? "ارز" : "Currency"}<select value={accountForm.currency} onChange={(event) => setAccountForm({ ...accountForm, currency: event.target.value })} className={inputClass} dir="ltr"><option>USD</option><option>EUR</option><option>AED</option><option>TRY</option><option>GBP</option><option>IRR</option></select></label><button disabled={busy || !projectCode} className={`${buttonClass} w-full`}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت حساب" : "Save account"}</button></div></form></div> : <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]"><div className="grid gap-3 sm:grid-cols-2">{exchanges.length ? exchanges.map((item) => <article key={item.id} className="rounded-[22px] border border-line bg-cream/50 p-4"><div className="flex items-start justify-between gap-2"><span className="grid size-9 place-items-center rounded-xl bg-amber-soft text-forest"><MapPin className="size-4" /></span><span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-forest">{fa ? "فعال" : "Active"}</span></div><h3 className="mb-0 mt-3 text-sm font-black text-ink">{item.name}</h3><p className="mb-0 mt-2 text-xs text-muted">{item.address}</p><div className="mt-3 space-y-1 text-xs text-muted"><p className="mb-0"><Phone className="me-1 inline size-3.5" />{item.primaryPhone}</p><p className="mb-0"><Phone className="me-1 inline size-3.5" />{item.secondaryPhone}</p></div></article>) : <p className="rounded-2xl border border-dashed border-sage-dark p-6 text-sm text-muted">{fa ? "هنوز صرافی ثبت نشده است." : "No exchanges yet."}</p>}</div><form onSubmit={(event) => void submit(event, "exchange")} className="rounded-[22px] border border-amber/30 bg-amber-soft/50 p-4"><h3 className="mb-0 text-sm font-black text-forest"><Plus className="me-1 inline size-4" />{fa ? "تعریف صرافی جدید" : "Define exchange"}</h3><div className="mt-4 space-y-3"><label className="block text-xs font-bold">{fa ? "نام صرافی" : "Exchange name"}<input required value={exchangeForm.name} onChange={(event) => setExchangeForm({ ...exchangeForm, name: event.target.value })} className={inputClass} /></label><label className="block text-xs font-bold">{fa ? "آدرس" : "Address"}<input required value={exchangeForm.address} onChange={(event) => setExchangeForm({ ...exchangeForm, address: event.target.value })} className={inputClass} /></label><label className="block text-xs font-bold">{fa ? "شماره تماس اول" : "Primary phone"}<input required value={exchangeForm.primaryPhone} onChange={(event) => setExchangeForm({ ...exchangeForm, primaryPhone: event.target.value })} className={inputClass} dir="ltr" /></label><label className="block text-xs font-bold">{fa ? "شماره تماس دوم" : "Secondary phone"}<input required value={exchangeForm.secondaryPhone} onChange={(event) => setExchangeForm({ ...exchangeForm, secondaryPhone: event.target.value })} className={inputClass} dir="ltr" /></label><button disabled={busy || !projectCode} className={`${buttonClass} w-full`}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت صرافی" : "Save exchange"}</button></div></form></div>}
+    <button type="button" onClick={() => void load()} className="mt-5 inline-flex items-center gap-2 text-xs font-bold text-muted hover:text-forest"><RefreshCw className="size-3.5" />{fa ? "به‌روزرسانی فهرست" : "Refresh directory"}</button>
+  </section>;
+}

@@ -21,7 +21,7 @@ export function ProjectResourcesWorkspace({ projects }: { projects: Project[] })
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState(false);
-  const [product, setProduct] = useState({ code: "", name: "", itemType: "resale", unit: "kg", currency: "USD" });
+  const [product, setProduct] = useState({ name: "", itemType: "resale", unit: "kg", currency: "USD" });
   const path = `/api/v1/projects/${encodeURIComponent(projectCode)}/ledger`;
 
   async function loadProducts() {
@@ -37,7 +37,7 @@ export function ProjectResourcesWorkspace({ projects }: { projects: Project[] })
 
   function resetAndClose() {
     setModal(false);
-    setProduct((current) => ({ ...current, code: "", name: "" }));
+    setProduct((current) => ({ ...current, name: "" }));
   }
 
   async function saveProduct(event: FormEvent<HTMLFormElement>) {
@@ -48,7 +48,7 @@ export function ProjectResourcesWorkspace({ projects }: { projects: Project[] })
       const response = await fetchWithTimeout(`${path}/products`, {
         method: "POST",
         headers: jsonHeaders(),
-        body: JSON.stringify({ ...product, code: product.code.trim().toUpperCase(), name: product.name.trim() }),
+        body: JSON.stringify({ name: product.name.trim(), itemType: product.itemType, unit: product.unit, currency: product.currency }),
       });
       if (response.status === 409) throw new Error("duplicate");
       if (!response.ok) throw new Error("save");
@@ -56,7 +56,7 @@ export function ProjectResourcesWorkspace({ projects }: { projects: Project[] })
       await loadProducts();
       setMessage(fa ? "کالا یا ملزومات ثبت شد." : "Product or supply saved.");
     } catch (error) {
-      setMessage(error instanceof Error && error.message === "duplicate" ? (fa ? "کد کالا تکراری است." : "Product code already exists.") : (fa ? "ثبت کالا انجام نشد." : "Product could not be saved."));
+      setMessage(error instanceof Error && error.message === "duplicate" ? (fa ? "این کالا قبلاً ثبت شده است." : "This product already exists.") : (fa ? "ثبت کالا انجام نشد." : "Product could not be saved."));
     } finally {
       setBusy(false);
     }
@@ -82,6 +82,6 @@ export function ProjectResourcesWorkspace({ projects }: { projects: Project[] })
         {products.length ? products.map((item) => <article key={item.id} className="group rounded-[20px] border border-line bg-cream/50 p-3.5 transition hover:-translate-y-0.5 hover:border-sage-dark hover:bg-white hover:shadow-md hover:shadow-forest/5"><div className="flex items-start justify-between gap-3"><span className="grid size-9 place-items-center rounded-xl bg-sage text-forest"><Boxes className="size-4" aria-hidden="true" /></span><span dir="ltr" className="rounded-full bg-white/80 px-2 py-1 font-mono text-[10px] font-black text-forest">{item.code}</span></div><h3 className="mb-0 mt-3 text-sm font-black text-ink">{item.name}</h3><div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted"><span className="rounded-full bg-white/80 px-2 py-1 font-bold">{item.itemType === "resale" ? (fa ? "قابل‌فروش" : "Resale") : (fa ? "ملزومات" : "Supply")}</span><span className="rounded-full bg-white/80 px-2 py-1 font-bold">{item.unit}</span><span dir="ltr" className="rounded-full bg-white/80 px-2 py-1 font-bold">{item.currency}</span></div></article>) : <p className="rounded-2xl border border-dashed border-sage-dark p-6 text-sm text-muted">{fa ? "کالایی ثبت نشده است." : "No products yet."}</p>}
       </div>
     </section>
-    {modal && <ProjectModal title={fa ? "تعریف کالا یا ملزومات" : "Define product or supply"} onClose={() => { if (!busy) setModal(false); }}><button type="button" onClick={() => { if (!busy) setModal(false); }} className="sr-only" aria-label={fa ? "بستن فرم" : "Close form"}><X /></button><form onSubmit={(event) => void saveProduct(event)} className="space-y-4"><label className="block text-xs font-bold">{fa ? "کد کالا" : "SKU"}<input required value={product.code} onChange={(event) => setProduct({ ...product, code: event.target.value })} className={inputClass} dir="ltr" /></label><label className="block text-xs font-bold">{fa ? "نام" : "Name"}<input required value={product.name} onChange={(event) => setProduct({ ...product, name: event.target.value })} className={inputClass} /></label><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold">{fa ? "نوع" : "Type"}<select value={product.itemType} onChange={(event) => setProduct({ ...product, itemType: event.target.value })} className={inputClass}><option value="resale">{fa ? "قابل‌فروش / صادراتی" : "Resale / export"}</option><option value="supply">{fa ? "ملزومات مصرفی" : "Operational supply"}</option></select></label><label className="text-xs font-bold">{fa ? "واحد" : "Unit"}<input required value={product.unit} onChange={(event) => setProduct({ ...product, unit: event.target.value })} className={inputClass} /></label></div><label className="block text-xs font-bold">{fa ? "ارز" : "Currency"}<select value={product.currency} onChange={(event) => setProduct({ ...product, currency: event.target.value })} className={inputClass} dir="ltr">{currencies.map((item) => <option key={item}>{item}</option>)}</select></label><div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setModal(false)} className="min-h-11 rounded-full border border-line px-5 text-sm font-bold text-muted">{fa ? "انصراف" : "Cancel"}</button><button disabled={busy || !projectCode} className={buttonClass}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت کالا" : "Save product"}</button></div></form></ProjectModal>}
+    {modal && <ProjectModal title={fa ? "تعریف کالا یا ملزومات" : "Define product or supply"} onClose={() => { if (!busy) setModal(false); }}><button type="button" onClick={() => { if (!busy) setModal(false); }} className="sr-only" aria-label={fa ? "بستن فرم" : "Close form"}><X /></button><form onSubmit={(event) => void saveProduct(event)} className="space-y-4"><label className="block text-xs font-bold">{fa ? "نام" : "Name"}<input required value={product.name} onChange={(event) => setProduct({ ...product, name: event.target.value })} className={inputClass} /></label><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold">{fa ? "نوع" : "Type"}<select value={product.itemType} onChange={(event) => setProduct({ ...product, itemType: event.target.value })} className={inputClass}><option value="resale">{fa ? "قابل‌فروش / صادراتی" : "Resale / export"}</option><option value="supply">{fa ? "ملزومات مصرفی" : "Operational supply"}</option></select></label><label className="text-xs font-bold">{fa ? "واحد" : "Unit"}<input required value={product.unit} onChange={(event) => setProduct({ ...product, unit: event.target.value })} className={inputClass} /></label></div><label className="block text-xs font-bold">{fa ? "ارز" : "Currency"}<select value={product.currency} onChange={(event) => setProduct({ ...product, currency: event.target.value })} className={inputClass} dir="ltr">{currencies.map((item) => <option key={item}>{item}</option>)}</select></label><div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setModal(false)} className="min-h-11 rounded-full border border-line px-5 text-sm font-bold text-muted">{fa ? "انصراف" : "Cancel"}</button><button disabled={busy || !projectCode} className={buttonClass}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت کالا" : "Save product"}</button></div></form></ProjectModal>}
   </>;
 }

@@ -8,10 +8,11 @@ import (
 )
 
 type MemoryStore struct {
-	mu       sync.RWMutex
-	accounts []Account
-	products []Product
-	entries  []JournalEntry
+	mu        sync.RWMutex
+	accounts  []Account
+	products  []Product
+	exchanges []Exchange
+	entries   []JournalEntry
 }
 
 func NewMemoryStore() *MemoryStore { return &MemoryStore{accounts: []Account{}} }
@@ -44,8 +45,10 @@ func (s *MemoryStore) CreateAccount(_ context.Context, projectID string, in Acco
 		pid = ""
 	}
 	sharedScope := in.SharedScope
-	if in.Scope == "project" { sharedScope = "project" }
-	a := Account{ID: id, Scope: in.Scope, SharedScope: sharedScope, ProjectID: pid, Code: in.Code, Name: in.Name, AccountType: in.AccountType, Currency: in.Currency, IsActive: true, CreatedAt: time.Now().UTC()}
+	if in.Scope == "project" {
+		sharedScope = "project"
+	}
+	a := Account{ID: id, Scope: in.Scope, SharedScope: sharedScope, ProjectID: pid, Code: newID("ACC-"), Name: in.Name, AccountNumber: strings.TrimSpace(in.AccountNumber), BankName: strings.TrimSpace(in.BankName), AccountType: in.AccountType, Currency: in.Currency, IsActive: true, CreatedAt: time.Now().UTC()}
 	s.accounts = append(s.accounts, a)
 	return a, nil
 }
@@ -62,20 +65,57 @@ func (s *MemoryStore) ListEntries(_ context.Context, projectID string) ([]Journa
 }
 
 func (s *MemoryStore) ListProducts(_ context.Context, projectID string) ([]Product, error) {
-	s.mu.RLock(); defer s.mu.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	out := []Product{}
-	for _, p := range s.products { if p.ProjectID == projectID && p.IsActive { out = append(out, p) } }
+	for _, p := range s.products {
+		if p.ProjectID == projectID && p.IsActive {
+			out = append(out, p)
+		}
+	}
 	return out, nil
 }
 
 func (s *MemoryStore) CreateProduct(_ context.Context, projectID string, in ProductInput) (Product, error) {
 	in.Currency = strings.ToUpper(strings.TrimSpace(in.Currency))
-	if _, err := prepareProduct(in); err != nil { return Product{}, err }
-	s.mu.Lock(); defer s.mu.Unlock()
-	for _, p := range s.products { if p.ProjectID == projectID && p.Code == in.Code { return Product{}, ErrConflict } }
+	if _, err := prepareProduct(in); err != nil {
+		return Product{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	p := Product{ID: newID("prod_"), ProjectID: projectID, ProductInput: in, IsActive: true, CreatedAt: time.Now().UTC()}
+	p.Code = newID("SKU-")
 	s.products = append(s.products, p)
 	return p, nil
+}
+
+func (s *MemoryStore) ListExchanges(_ context.Context, projectID string) ([]Exchange, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []Exchange{}
+	for _, item := range s.exchanges {
+		if item.ProjectID == projectID && item.IsActive {
+			out = append(out, item)
+		}
+	}
+	return out, nil
+}
+
+func (s *MemoryStore) CreateExchange(_ context.Context, projectID string, in ExchangeInput) (Exchange, error) {
+	in, err := prepareExchange(in)
+	if err != nil {
+		return Exchange{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, item := range s.exchanges {
+		if item.ProjectID == projectID && item.Name == in.Name {
+			return Exchange{}, ErrConflict
+		}
+	}
+	item := Exchange{ID: newID("exch_"), ProjectID: projectID, ExchangeInput: in, IsActive: true, CreatedAt: time.Now().UTC()}
+	s.exchanges = append(s.exchanges, item)
+	return item, nil
 }
 
 func (s *MemoryStore) CreateEntry(_ context.Context, projectID, actor string, in EntryInput) (JournalEntry, error) {

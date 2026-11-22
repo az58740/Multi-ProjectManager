@@ -303,8 +303,7 @@ export function ProjectDashboard() {
           )}
           {section === "overview" && <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-amber">{t.dashboardKicker}</span>
-              <h1 className="m-0 mt-1 text-2xl font-black tracking-tight text-forest sm:text-4xl">{isFa ? "مدیریت یکپارچه پروژه‌های شما" : "Your unified project management"}</h1>
+              <h1 className="m-0 text-xl font-black leading-tight tracking-tight text-forest sm:text-3xl">{t.dashboardKicker}</h1>
               <p className="mb-0 mt-1 hidden text-sm leading-7 text-muted sm:block">{t.dashboardSubtitle}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">

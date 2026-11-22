@@ -30,11 +30,11 @@ func NewPostgresStore(ctx context.Context, url string) (*PostgresStore, error) {
 }
 func (s *PostgresStore) Close() { s.pool.Close() }
 
-const accountCols = `id, scope, COALESCE(shared_scope,''), COALESCE(project_id,''), code, name, account_type, COALESCE(currency,''), is_active, created_at`
+const accountCols = `id, scope, COALESCE(shared_scope,''), COALESCE(project_id,''), code, name, COALESCE(account_number,''), COALESCE(bank_name,''), account_type, COALESCE(currency,''), is_active, created_at`
 
 func scanAccount(row interface{ Scan(...any) error }) (Account, error) {
 	var a Account
-	e := row.Scan(&a.ID, &a.Scope, &a.SharedScope, &a.ProjectID, &a.Code, &a.Name, &a.AccountType, &a.Currency, &a.IsActive, &a.CreatedAt)
+	e := row.Scan(&a.ID, &a.Scope, &a.SharedScope, &a.ProjectID, &a.Code, &a.Name, &a.AccountNumber, &a.BankName, &a.AccountType, &a.Currency, &a.IsActive, &a.CreatedAt)
 	return a, e
 }
 func (s *PostgresStore) ListAccounts(ctx context.Context, pid string) ([]Account, error) {
@@ -54,7 +54,7 @@ func (s *PostgresStore) ListAccounts(ctx context.Context, pid string) ([]Account
 	return out, rows.Err()
 }
 func (s *PostgresStore) CreateAccount(ctx context.Context, pid string, in AccountInput) (Account, error) {
-	in.Code, in.Name, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.ToUpper(strings.TrimSpace(in.Currency))
+	in.Code, in.Name, in.AccountNumber, in.BankName, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.TrimSpace(in.AccountNumber), strings.TrimSpace(in.BankName), strings.ToUpper(strings.TrimSpace(in.Currency))
 	if !validAccount(in) {
 		return Account{}, ErrInvalidInput
 	}
@@ -64,7 +64,7 @@ func (s *PostgresStore) CreateAccount(ctx context.Context, pid string, in Accoun
 		project = pid
 		sharedScope = "project"
 	}
-	a, e := scanAccount(s.pool.QueryRow(ctx, `INSERT INTO ledger_accounts(id,scope,shared_scope,project_id,code,name,account_type,currency) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING `+accountCols, newID("acct_"), in.Scope, sharedScope, project, in.Code, in.Name, in.AccountType, in.Currency))
+	a, e := scanAccount(s.pool.QueryRow(ctx, `INSERT INTO ledger_accounts(id,scope,shared_scope,project_id,code,name,account_number,bank_name,account_type,currency) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING `+accountCols, newID("acct_"), in.Scope, sharedScope, project, newID("ACC-"), in.Name, in.AccountNumber, in.BankName, in.AccountType, in.Currency))
 	if e != nil {
 		if isUnique(e) {
 			return Account{}, ErrConflict
@@ -181,18 +181,33 @@ func scanProduct(row interface{ Scan(...any) error }) (Product, error) {
 
 func (s *PostgresStore) ListProducts(ctx context.Context, pid string) ([]Product, error) {
 	rows, err := s.pool.Query(ctx, `SELECT `+productCols+` FROM ledger_products WHERE project_id=$1 AND is_active ORDER BY item_type, name, id`, pid)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	items := []Product{}
-	for rows.Next() { p, err := scanProduct(rows); if err != nil { return nil, err }; items = append(items, p) }
+	for rows.Next() {
+		p, err := scanProduct(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, p)
+	}
 	return items, rows.Err()
 }
 
 func (s *PostgresStore) CreateProduct(ctx context.Context, pid string, in ProductInput) (Product, error) {
 	in, err := prepareProduct(in)
-	if err != nil { return Product{}, err }
-	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING `+productCols, newID("prod_"), pid, in.Code, in.Name, in.ItemType, in.Unit, in.Currency))
-	if err != nil { if isUnique(err) { return Product{}, ErrConflict }; return Product{}, err }
+	if err != nil {
+		return Product{}, err
+	}
+	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING `+productCols, newID("prod_"), pid, newID("SKU-"), in.Name, in.ItemType, in.Unit, in.Currency))
+	if err != nil {
+		if isUnique(err) {
+			return Product{}, ErrConflict
+		}
+		return Product{}, err
+	}
 	return p, nil
 }
 
@@ -202,3 +217,43 @@ func isUnique(e error) bool {
 }
 
 var _ = fmt.Sprintf
+
+const exchangeCols = `id, project_id, name, address, primary_phone, secondary_phone, is_active, created_at`
+
+func scanExchange(row interface{ Scan(...any) error }) (Exchange, error) {
+	var item Exchange
+	err := row.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Address, &item.PrimaryPhone, &item.SecondaryPhone, &item.IsActive, &item.CreatedAt)
+	return item, err
+}
+
+func (s *PostgresStore) ListExchanges(ctx context.Context, pid string) ([]Exchange, error) {
+	rows, err := s.pool.Query(ctx, `SELECT `+exchangeCols+` FROM ledger_exchanges WHERE project_id=$1 AND is_active ORDER BY name, id`, pid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Exchange{}
+	for rows.Next() {
+		item, err := scanExchange(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
+func (s *PostgresStore) CreateExchange(ctx context.Context, pid string, in ExchangeInput) (Exchange, error) {
+	in, err := prepareExchange(in)
+	if err != nil {
+		return Exchange{}, err
+	}
+	item, err := scanExchange(s.pool.QueryRow(ctx, `INSERT INTO ledger_exchanges(id,project_id,name,address,primary_phone,secondary_phone) VALUES($1,$2,$3,$4,$5,$6) RETURNING `+exchangeCols, newID("exch_"), pid, in.Name, in.Address, in.PrimaryPhone, in.SecondaryPhone))
+	if err != nil {
+		if isUnique(err) {
+			return Exchange{}, ErrConflict
+		}
+		return Exchange{}, err
+	}
+	return item, nil
+}

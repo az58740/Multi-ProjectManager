@@ -20,39 +20,56 @@ var (
 var ProductTypes = map[string]bool{"resale": true, "supply": true}
 
 type AccountInput struct {
-	Scope       string `json:"scope"`
-	SharedScope string `json:"sharedScope"`
-	Code        string `json:"code"`
-	Name        string `json:"name"`
-	AccountType string `json:"accountType"`
-	Currency    string `json:"currency"`
+	Scope         string `json:"scope"`
+	SharedScope   string `json:"sharedScope"`
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	AccountNumber string `json:"accountNumber"`
+	BankName      string `json:"bankName"`
+	AccountType   string `json:"accountType"`
+	Currency      string `json:"currency"`
 }
 type Account struct {
-	ID          string    `json:"id"`
-	Scope       string    `json:"scope"`
-	SharedScope string    `json:"sharedScope"`
-	ProjectID   string    `json:"projectId"`
-	Code        string    `json:"code"`
-	Name        string    `json:"name"`
-	AccountType string    `json:"accountType"`
-	Currency    string    `json:"currency"`
-	IsActive    bool      `json:"isActive"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID            string    `json:"id"`
+	Scope         string    `json:"scope"`
+	SharedScope   string    `json:"sharedScope"`
+	ProjectID     string    `json:"projectId"`
+	Code          string    `json:"code"`
+	Name          string    `json:"name"`
+	AccountNumber string    `json:"accountNumber"`
+	BankName      string    `json:"bankName"`
+	AccountType   string    `json:"accountType"`
+	Currency      string    `json:"currency"`
+	IsActive      bool      `json:"isActive"`
+	CreatedAt     time.Time `json:"createdAt"`
 }
 
 type ProductInput struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
+	Code     string `json:"code"`
+	Name     string `json:"name"`
 	ItemType string `json:"itemType"`
-	Unit string `json:"unit"`
+	Unit     string `json:"unit"`
 	Currency string `json:"currency"`
 }
 
 type Product struct {
-	ID string `json:"id"`
+	ID        string `json:"id"`
 	ProjectID string `json:"projectId"`
 	ProductInput
-	IsActive bool `json:"isActive"`
+	IsActive  bool      `json:"isActive"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+type ExchangeInput struct {
+	Name           string `json:"name"`
+	Address        string `json:"address"`
+	PrimaryPhone   string `json:"primaryPhone"`
+	SecondaryPhone string `json:"secondaryPhone"`
+}
+type Exchange struct {
+	ID        string `json:"id"`
+	ProjectID string `json:"projectId"`
+	ExchangeInput
+	IsActive  bool      `json:"isActive"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 type LineInput struct {
@@ -94,6 +111,8 @@ type Store interface {
 	CreateAccount(context.Context, string, AccountInput) (Account, error)
 	ListProducts(context.Context, string) ([]Product, error)
 	CreateProduct(context.Context, string, ProductInput) (Product, error)
+	ListExchanges(context.Context, string) ([]Exchange, error)
+	CreateExchange(context.Context, string, ExchangeInput) (Exchange, error)
 	ListEntries(context.Context, string) ([]JournalEntry, error)
 	CreateEntry(context.Context, string, string, EntryInput) (JournalEntry, error)
 }
@@ -127,14 +146,27 @@ func currency(v string) bool {
 }
 func validAccount(in AccountInput) bool {
 	in.Code, in.Name, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.ToUpper(strings.TrimSpace(in.Currency))
-	if in.SharedScope == "" && in.Scope == "project" { in.SharedScope = "project" }
-	return (in.Scope == "project" || in.Scope == "shared") && (in.Scope == "project" || map[string]bool{"all": true, "export": true, "cold-storage": true, "sorting": true, "construction": true, "rental": true, "other": true}[in.SharedScope]) && in.Code != "" && in.Name != "" && currency(in.Currency) && map[string]bool{"asset": true, "liability": true, "equity": true, "revenue": true, "expense": true}[in.AccountType]
+	if in.SharedScope == "" && in.Scope == "project" {
+		in.SharedScope = "project"
+	}
+	if in.SharedScope == "" && in.Scope == "shared" {
+		in.SharedScope = "all"
+	}
+	return (in.Scope == "project" || in.Scope == "shared") && (in.Scope == "project" || map[string]bool{"all": true, "export": true, "cold-storage": true, "sorting": true, "construction": true, "rental": true, "other": true}[in.SharedScope]) && in.Name != "" && currency(in.Currency) && map[string]bool{"asset": true, "liability": true, "equity": true, "revenue": true, "expense": true}[in.AccountType]
 }
 
 func prepareProduct(in ProductInput) (ProductInput, error) {
 	in.Code, in.Name, in.ItemType, in.Unit, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.TrimSpace(in.ItemType), strings.TrimSpace(in.Unit), strings.ToUpper(strings.TrimSpace(in.Currency))
-	if in.Code == "" || in.Name == "" || !ProductTypes[in.ItemType] || in.Unit == "" || !currency(in.Currency) || strings.ContainsRune(in.Code, 0) || strings.ContainsRune(in.Name, 0) || strings.ContainsRune(in.Unit, 0) {
+	if in.Name == "" || !ProductTypes[in.ItemType] || in.Unit == "" || !currency(in.Currency) || strings.ContainsRune(in.Name, 0) || strings.ContainsRune(in.Unit, 0) {
 		return ProductInput{}, ErrInvalidInput
+	}
+	return in, nil
+}
+
+func prepareExchange(in ExchangeInput) (ExchangeInput, error) {
+	in.Name, in.Address, in.PrimaryPhone, in.SecondaryPhone = strings.TrimSpace(in.Name), strings.TrimSpace(in.Address), strings.TrimSpace(in.PrimaryPhone), strings.TrimSpace(in.SecondaryPhone)
+	if in.Name == "" || in.Address == "" || in.PrimaryPhone == "" || in.SecondaryPhone == "" || strings.ContainsRune(in.Name, 0) || strings.ContainsRune(in.Address, 0) || strings.ContainsRune(in.PrimaryPhone, 0) || strings.ContainsRune(in.SecondaryPhone, 0) {
+		return ExchangeInput{}, ErrInvalidInput
 	}
 	return in, nil
 }
