@@ -8,6 +8,7 @@ import { jsonHeaders } from "@/lib/accounts";
 import { exportMessages } from "@/lib/export-i18n";
 import { asciiNumber, COUNTERPARTY_ROLES, isCounterparty, isListOf, isShipment, SHIPMENT_STATUSES, type Counterparty, type CounterpartyInput, type CounterpartyRole, type Shipment, type ShipmentInput, type ShipmentStatus } from "@/lib/export-records";
 import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/http";
+import { ProjectModal } from "@/components/project-modal";
 
 type ListState<T> = { status: "loading" | "error" | "ready"; items: T[] };
 type SaveKind = "counterparty" | "shipment";
@@ -110,6 +111,7 @@ export function ExportWorkspace({ code }: { code: string }) {
   const busyRef = useRef(false);
   const [saveError, setSaveError] = useState<SaveKind | null>(null);
   const [notice, setNotice] = useState<SaveKind | null>(null);
+  const [formModal, setFormModal] = useState<SaveKind | null>(null);
   const path = `/api/v1/projects/${encodeURIComponent(code)}/export`;
 
   const loadCounterparties = useCallback(async () => {
@@ -185,8 +187,9 @@ export function ExportWorkspace({ code }: { code: string }) {
             <div className="mt-5 grid gap-3 xl:grid-cols-2">{shipments.items.map((item) => <article key={item.id} className="min-w-0 rounded-2xl border border-line bg-white p-4"><div className="flex flex-wrap items-start justify-between gap-2"><h3 className="m-0 break-all text-base font-black text-forest">{item.reference}</h3><span className="rounded-full bg-amber-soft px-2.5 py-1 text-xs font-bold text-[#735722]">{m[item.status]}</span></div><dl className="mb-0 mt-4 space-y-2 text-xs">{[[m.supplierLabel, counterparties.status === "ready" ? counterparties.items.find((supplier) => supplier.id === item.supplierId)?.name || m.unknownSupplier : counterparties.status === "loading" ? m.countLoading : m.countUnavailable], [m.destination, item.destination], [m.palletCount, item.palletCount.toLocaleString(locale === "fa" ? "fa-IR" : "en-US")], [m.weightKg, item.weightKg]].map(([label, value]) => <div key={label} className="flex justify-between gap-3"><dt className="shrink-0 text-muted">{label}</dt><dd dir="auto" className="m-0 break-words text-end font-semibold text-ink">{value || "—"}</dd></div>)}</dl>{item.notes && <p className="mb-0 mt-3 whitespace-pre-wrap break-words border-t border-line pt-3 text-xs leading-6 text-muted">{item.notes}</p>}</article>)}</div>
           )}
         </div>
-        <aside className="rounded-[26px] border border-line bg-paper p-5 sm:p-7"><h2 className="m-0 text-lg font-black text-forest">{area === "counterparties" ? m.addCounterparty : m.addShipment}</h2><p className="mb-5 mt-2 text-xs leading-6 text-muted">{area === "counterparties" ? m.counterpartyFormDescription : m.shipmentFormDescription}</p>{area === "counterparties" ? <CounterpartyForm busy={busy !== null} saveError={saveError === "counterparty"} onSave={(input) => save("counterparty", input)} /> : <ShipmentForm suppliers={suppliers} supplierStatus={counterparties.status} busy={busy !== null} saveError={saveError === "shipment"} onSave={(input) => save("shipment", input)} />}</aside>
+        <aside className="rounded-[26px] border border-line bg-paper p-5 sm:p-7"><p className="m-0 text-xs font-extrabold uppercase tracking-[0.14em] text-amber">{m.sectionLabel}</p><h2 className="m-0 mt-2 text-lg font-black text-forest">{area === "counterparties" ? m.addCounterparty : m.addShipment}</h2><p className="mb-4 mt-2 text-xs leading-6 text-muted">{area === "counterparties" ? m.counterpartyFormDescription : m.shipmentFormDescription}</p><button type="button" onClick={() => setFormModal(area === "counterparties" ? "counterparty" : "shipment")} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-forest px-5 text-sm font-extrabold text-white"><CirclePlus className="size-4" />{area === "counterparties" ? m.addCounterparty : m.addShipment}</button></aside>
       </section>
+      {formModal && <ProjectModal title={formModal === "counterparty" ? m.addCounterparty : m.addShipment} onClose={() => setFormModal(null)}>{formModal === "counterparty" ? <CounterpartyForm busy={busy !== null} saveError={saveError === "counterparty"} onSave={(input) => save("counterparty", input)} /> : <ShipmentForm suppliers={suppliers} supplierStatus={counterparties.status} busy={busy !== null} saveError={saveError === "shipment"} onSave={(input) => save("shipment", input)} />}</ProjectModal>}
     </>
   );
 }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowRight, Leaf, LoaderCircle, LogOut, ScrollText } from "lucide-react";
+import { ArrowRight, BarChart3, BookOpen, Leaf, LoaderCircle, LogOut, ScrollText, UsersRound } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { ExportWorkspace } from "@/components/export-workspace";
@@ -20,6 +20,8 @@ import { exportMessages } from "@/lib/export-i18n";
 import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/http";
 import { isProjectListPayload, isProjectRecord, type Project, type ProjectWritePayload } from "@/lib/projects";
 
+type ExportSection = "overview" | "records" | "ledger";
+
 export default function ExportDashboardPage() {
   const params = useParams<{ code: string }>();
   const router = useRouter();
@@ -35,6 +37,7 @@ export default function ExportDashboardPage() {
   const editBusyRef = useRef(false);
   const [editError, setEditError] = useState(false);
   const [projectSaved, setProjectSaved] = useState(false);
+  const [section, setSection] = useState<ExportSection>("overview");
   const code = typeof params.code === "string" ? params.code : "";
   const closeModal = useCallback(() => setModal(null), []);
 
@@ -94,19 +97,19 @@ export default function ExportDashboardPage() {
 
   return (
     <main className="min-h-screen bg-cream">
-      <header className="border-b border-line bg-paper"><div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8"><Link href="/dashboard" className="inline-flex items-center gap-3"><BrandMark /></Link><div className="flex items-center gap-2 sm:gap-3"><LanguageToggle /><button type="button" onClick={() => void signOut()} aria-label={t.logout} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-sm font-semibold text-muted transition hover:bg-cream hover:text-forest"><LogOut className="size-4" aria-hidden="true" /><span className="hidden sm:inline">{t.logout}</span></button></div></div></header>
+      <header className="border-b border-line bg-paper"><div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8"><Link href="/dashboard" className="inline-flex items-center gap-3"><BrandMark /></Link><div className="flex items-center gap-2 sm:gap-3"><span dir="ltr" className="hidden rounded-lg bg-cream px-2 py-1 font-mono text-[10px] font-black text-forest sm:inline">{project.code}</span><LanguageToggle /><button type="button" onClick={() => void signOut()} aria-label={t.logout} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line px-3 text-sm font-semibold text-muted transition hover:bg-cream hover:text-forest"><LogOut className="size-4" aria-hidden="true" /><span className="hidden sm:inline">{t.logout}</span></button></div></div></header>
       <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-extrabold text-forest"><ArrowRight className={`size-4 ${locale === "en" ? "rotate-180" : ""}`} aria-hidden="true" />{t.exportBackToProjects}</Link>
         {demoMode && <div className="mt-5 rounded-2xl border border-amber/30 bg-amber-soft/80 px-4 py-3 text-xs font-semibold leading-6 text-forest sm:text-sm">{t.demoBanner}</div>}
         {logoutError && <div role="alert" className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{accountMessages[locale].logoutError}</div>}
         {projectSaved && <div role="status" className="mt-5 rounded-2xl border border-sage-dark bg-sage px-4 py-3 text-sm font-bold text-forest">{m.projectSaved}</div>}
-        <section className="mt-5 rounded-[28px] bg-forest p-6 text-white shadow-xl shadow-forest/10 sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"><div><div className="flex flex-wrap items-center gap-3"><span className="grid size-11 place-items-center rounded-[15px] bg-white/10 text-amber-light"><Leaf className="size-5" aria-hidden="true" /></span><span dir="ltr" className="rounded-lg bg-white/10 px-3 py-1.5 font-mono text-xs font-black">{project.code}</span><span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold">{m.projectStatus[project.status]}</span></div><p className="mb-0 mt-5 text-xs font-extrabold uppercase tracking-[0.16em] text-amber-light">{t.exportDashboardKicker}</p><h1 className="mb-0 mt-2 break-words text-3xl font-black tracking-tight sm:text-4xl">{project.name}</h1><p className="mb-0 mt-3 max-w-2xl text-sm leading-7 text-white/70">{m.description}</p><button type="button" onClick={() => { setEditError(false); setModal("details"); }} className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-full border border-white/30 px-4 text-xs font-bold text-white transition hover:bg-white/10"><ScrollText className="size-4" aria-hidden="true" />{m.projectDetails}</button></div><dl className="m-0 grid grid-cols-2 gap-3 text-sm sm:min-w-[310px]">{[[m.location, project.location], [m.destination, project.destination], [m.manager, project.manager], [m.accountant, project.accountant]].map(([label, value]) => <div key={label} className="min-w-0 rounded-2xl bg-white/10 p-4"><dt className="text-xs text-white/60">{label}</dt><dd className="mb-0 ms-0 mt-2 break-words font-extrabold">{value || "—"}</dd></div>)}</dl></div>
+        <section className="mt-5 rounded-[24px] bg-forest p-5 text-white shadow-lg shadow-forest/10 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className="grid size-9 place-items-center rounded-xl bg-white/10 text-amber-light"><Leaf className="size-4" aria-hidden="true" /></span><span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold">{m.projectStatus[project.status]}</span></div><p className="mb-0 mt-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-amber-light">{t.exportDashboardKicker}</p><h1 className="mb-0 mt-1 truncate text-2xl font-black tracking-tight sm:text-3xl">{project.name}</h1><p className="mb-0 mt-1 truncate text-xs text-white/65">{m.description}</p></div><button type="button" onClick={() => { setEditError(false); setModal("details"); }} className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-full border border-white/30 px-4 text-xs font-bold text-white transition hover:bg-white/10"><ScrollText className="size-4" aria-hidden="true" />{m.projectDetails}</button></div>
         </section>
-        <ExportOperationsWorkspace code={project.code} />
-        <ExportWorkspace key={project.code} code={project.code} />
-        <LedgerWorkspace code={project.code} />
-        <ExportStats code={project.code} />
+        <nav aria-label={locale === "fa" ? "منوی داشبورد صادرات" : "Export dashboard navigation"} className="sticky top-0 z-20 mt-3 flex gap-2 overflow-x-auto rounded-2xl border border-line bg-paper/95 p-2 shadow-sm backdrop-blur"><button type="button" onClick={() => setSection("overview")} className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-xs font-extrabold ${section === "overview" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><BarChart3 className="size-4" />{locale === "fa" ? "نمای کلی" : "Overview"}</button><button type="button" onClick={() => setSection("records")} className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-xs font-extrabold ${section === "records" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><UsersRound className="size-4" />{locale === "fa" ? "طرف‌حساب و محموله" : "Records"}</button><button type="button" onClick={() => setSection("ledger")} className={`inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-xs font-extrabold ${section === "ledger" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><BookOpen className="size-4" />{locale === "fa" ? "دفترکل" : "Ledger"}</button></nav>
+        {section === "overview" && <><ExportOperationsWorkspace code={project.code} /><ExportStats code={project.code} /></>}
+        {section === "records" && <ExportWorkspace key={project.code} code={project.code} />}
+        {section === "ledger" && <LedgerWorkspace code={project.code} />}
       </div>
       {modal && <ProjectModal title={modal === "details" ? t.projectDetails : t.editProjectTitle} onClose={closeModal}>{modal === "details" ? <ProjectDetails project={project} onEdit={() => { setEditError(false); setModal("edit"); }} /> : <ProjectForm initial={project} isEdit busy={editBusy} error={editError ? m.projectSaveError : ""} currencyNote={m.currencyNote} onSubmit={(input) => void saveProject(input)} onCancel={closeModal} />}</ProjectModal>}
     </main>

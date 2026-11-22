@@ -17,6 +17,7 @@ import { jsonHeaders, type Session } from "@/lib/accounts";
 import { isProjectListPayload, isProjectRecord, isProjectStatus, isProjectType, PROJECT_STATUSES, PROJECT_TYPES, type Project, type ProjectStatus, type ProjectType, type ProjectWritePayload } from "@/lib/projects";
 
 type ModalMode = "create" | "edit" | "details" | null;
+type DashboardSection = "overview" | "resources";
 
 function typeLabel(type: ProjectType, t: ReturnType<typeof useLocale>["t"]) {
   const labels: Record<ProjectType, string> = {
@@ -72,6 +73,7 @@ export function ProjectDashboard() {
   const [demoMode, setDemoMode] = useState(false);
   const [accessDenied, setAccessDenied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [section, setSection] = useState<DashboardSection>("overview");
 
   useEffect(() => {
     let active = true;
@@ -267,8 +269,8 @@ export function ProjectDashboard() {
 
       <nav aria-label={isFa ? "منوی سریع داشبورد" : "Dashboard quick navigation"} className="sticky top-0 z-30 border-b border-line bg-paper/95 px-4 py-2 shadow-sm backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-[1440px] items-center gap-2 overflow-x-auto sm:px-2">
-          <button type="button" onClick={() => document.getElementById("projects-list")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="min-h-10 shrink-0 rounded-full bg-sage px-4 text-xs font-extrabold text-forest"><ClipboardList className="me-1 inline size-4" />{t.activeProjects}</button>
-          <button type="button" onClick={() => document.getElementById("resources")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="min-h-10 shrink-0 rounded-full border border-line px-4 text-xs font-extrabold text-forest"><Landmark className="me-1 inline size-4" />{isFa ? "منابع پروژه" : "Resources"}</button>
+          <button type="button" onClick={() => setSection("overview")} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-extrabold ${section === "overview" ? "bg-sage text-forest" : "border border-line text-muted"}`}><ClipboardList className="me-1 inline size-4" />{t.activeProjects}</button>
+          <button type="button" onClick={() => setSection("resources")} className={`min-h-10 shrink-0 rounded-full px-4 text-xs font-extrabold ${section === "resources" ? "bg-forest text-white" : "border border-line text-muted"}`}><Landmark className="me-1 inline size-4" />{isFa ? "منابع پروژه" : "Resources"}</button>
           <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="min-h-10 shrink-0 rounded-full bg-forest px-4 text-xs font-extrabold text-white"><CirclePlus className="me-1 inline size-4" />{t.createProject}</button>
         </div>
       </nav>
@@ -277,9 +279,8 @@ export function ProjectDashboard() {
         <aside className="hidden lg:block">
           <div className="sticky top-7 rounded-[26px] border border-line bg-paper p-4">
             <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">{t.allProjects}</p>
-            <div className="flex items-center gap-3 rounded-2xl bg-sage px-4 py-3 text-sm font-extrabold text-forest">
-              <ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}
-            </div>
+            <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
+            <button type="button" onClick={() => setSection("resources")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "resources" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "منابع و کاتالوگ" : "Resources & catalog"}</button>
             <div className="mt-5 rounded-2xl bg-forest p-4 text-white">
               <div className="grid size-10 place-items-center rounded-[14px] bg-white/10 text-amber-light"><Globe2 className="size-5" aria-hidden="true" /></div>
               <p className="mb-0 mt-4 text-sm font-extrabold">{t.approachKicker}</p>
@@ -312,8 +313,7 @@ export function ProjectDashboard() {
             </div>
           </div>
 
-          {projects.length > 0 && <ProjectResourcesWorkspace projects={projects} />}
-
+          {section === "resources" ? (projects.length > 0 ? <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
@@ -347,28 +347,28 @@ export function ProjectDashboard() {
               {projects.length === 0 && <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); }} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-forest underline decoration-sage-dark underline-offset-4"><Plus className="size-4" aria-hidden="true" />{t.createFirstProject}</button>}
             </div>
           ) : (
-            <div id="projects-list" className="mt-6 scroll-mt-20 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div id="projects-list" className="mt-5 scroll-mt-20 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {filteredProjects.map((project) => {
                 const validType: ProjectType = isProjectType(project.type) ? project.type : "other";
                 return (
-                  <article key={project.id} className="group rounded-[25px] border border-line bg-paper transition duration-300 hover:-translate-y-1 hover:border-sage-dark hover:shadow-xl hover:shadow-forest/5">
-                    <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.code} — ${project.name}`} className="block w-full rounded-[25px] p-5 text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark sm:p-6">
+                  <article key={project.id} className="group rounded-2xl border border-line bg-paper transition duration-300 hover:-translate-y-0.5 hover:border-sage-dark hover:shadow-lg hover:shadow-forest/5">
+                    <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.code} — ${project.name}`} className="block w-full rounded-2xl p-3.5 text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-3">
-                          <span className="grid size-12 shrink-0 place-items-center rounded-[17px] bg-sage text-forest"><TypeIcon type={validType} /></span>
-                          <span dir="ltr" className="truncate rounded-lg bg-cream px-2.5 py-1.5 font-mono text-xs font-black text-forest">{project.code}</span>
+                          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-sage text-forest"><TypeIcon type={validType} className="size-4" /></span>
+                          <span dir="ltr" className="truncate rounded-md bg-cream px-2 py-1 font-mono text-[10px] font-black text-forest">{project.code}</span>
                         </div>
-                        <span className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-bold ${project.status === "planning" ? "bg-amber-soft text-[#87652a]" : project.status === "paused" ? "bg-stone-100 text-stone-700" : project.status === "completed" ? "bg-forest text-white" : "bg-sage text-forest"}`}>
+                        <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${project.status === "planning" ? "bg-amber-soft text-[#87652a]" : project.status === "paused" ? "bg-stone-100 text-stone-700" : project.status === "completed" ? "bg-forest text-white" : "bg-sage text-forest"}`}>
                           {statusLabel(project.status, t)}
                         </span>
                       </div>
-                      <h2 className="mb-0 mt-5 line-clamp-2 min-h-14 text-lg font-extrabold leading-7 text-forest">{project.name}</h2>
-                      <p className="mb-0 mt-1 text-xs font-semibold text-muted">{typeLabel(validType, t)}</p>
-                      <div className="mt-5 space-y-3 border-t border-line pt-4 text-xs text-muted">
+                      <h2 className="mb-0 mt-3 line-clamp-1 text-sm font-extrabold leading-6 text-forest">{project.name}</h2>
+                      <p className="mb-0 mt-0.5 text-[11px] font-semibold text-muted">{typeLabel(validType, t)}</p>
+                      <div className="mt-3 space-y-1.5 border-t border-line pt-3 text-[11px] text-muted">
                         <div className="flex items-center gap-2"><MapPin className="size-4 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.location || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectLocation}</span></div>
-                        <div className="flex items-center gap-2"><MapPin className="size-4 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.destination || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectDestination}</span></div>
-                        <div className="flex items-center gap-2"><span className="grid size-4 shrink-0 place-items-center rounded-full bg-sage text-[9px] font-black text-forest">{(project.manager || "?").slice(0, 1)}</span><span className="truncate">{project.manager || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectManager}</span></div>
-                        <div className="flex items-center gap-2"><span className="grid size-4 shrink-0 place-items-center rounded-full bg-amber-soft text-[9px] font-black text-forest">{(project.accountant || "?").slice(0, 1)}</span><span className="truncate">{project.accountant || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectAccountant}</span></div>
+                        <div className="hidden items-center gap-2 sm:flex"><MapPin className="size-3.5 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.destination || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectDestination}</span></div>
+                        <div className="hidden items-center gap-2 xl:flex"><span className="grid size-3.5 shrink-0 place-items-center rounded-full bg-sage text-[8px] font-black text-forest">{(project.manager || "?").slice(0, 1)}</span><span className="truncate">{project.manager || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectManager}</span></div>
+                        <div className="hidden items-center gap-2 xl:flex"><span className="grid size-3.5 shrink-0 place-items-center rounded-full bg-amber-soft text-[8px] font-black text-forest">{(project.accountant || "?").slice(0, 1)}</span><span className="truncate">{project.accountant || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectAccountant}</span></div>
                       </div>
                     </button>
                   </article>
@@ -376,6 +376,7 @@ export function ProjectDashboard() {
               })}
             </div>
           )}
+          </>}
         </section>
       </div>
 
