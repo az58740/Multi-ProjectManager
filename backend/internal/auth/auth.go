@@ -316,7 +316,7 @@ func (a *Auth) login(w http.ResponseWriter, r *http.Request) {
 	}
 	email, ok := validEmail(in.Email)
 	if !ok || len(in.Password) == 0 || len(in.Password) > 72 {
-		writeError(w, 400, "ایمیل یا رمز عبور معتبر نیست.")
+		writeError(w, 400, "ایمیل یا رمز عبور نادرست است.")
 		return
 	}
 	if !a.rate(w, r, "login", email) {

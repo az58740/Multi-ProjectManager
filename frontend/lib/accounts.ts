@@ -49,7 +49,7 @@ export async function responseError(response: Response, locale: Locale, context:
   } catch { /* Error responses may not have a JSON body. */ }
   if (response.status === 403 && code === "pending") return m.pendingLogin;
   if (response.status === 403 && code === "disabled") return m.disabledAccount;
-  if (response.status === 401 && context === "login") return m.invalidCredentials;
+  if ((response.status === 400 || response.status === 401 || response.status === 422) && context === "login") return m.invalidCredentials;
   if (response.status === 401) return m.sessionEnded;
   if (response.status === 403) return m.forbidden;
   if (response.status === 409) return context === "update" ? m.lastAdmin : m.duplicate;
