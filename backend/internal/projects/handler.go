@@ -145,7 +145,7 @@ func validateInput(input CreateInput) string {
 
 func validProjectType(value string) bool {
 	switch value {
-	case "export", "cold-storage", "sorting", "construction", "rental", "other":
+	case "export", "cold-storage", "sorting", "construction", "rental", "personal-account", "other":
 		return true
 	default:
 		return false

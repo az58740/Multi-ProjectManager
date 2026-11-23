@@ -1,4 +1,4 @@
-export const PROJECT_TYPES = ["export", "cold-storage", "sorting", "construction", "rental", "other"] as const;
+export const PROJECT_TYPES = ["export", "cold-storage", "sorting", "construction", "rental", "personal-account", "other"] as const;
 export type ProjectType = (typeof PROJECT_TYPES)[number];
 
 export const PROJECT_STATUSES = ["planning", "active", "paused", "completed"] as const;

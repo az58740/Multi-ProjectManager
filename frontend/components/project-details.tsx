@@ -13,6 +13,7 @@ export function ProjectDetails({ project, onEdit }: { project: Project; onEdit: 
     sorting: t.typeSorting,
     construction: t.typeConstruction,
     rental: t.typeRental,
+    "personal-account": t.typePersonalAccount,
     other: t.typeOther,
   };
   const statusNames: Record<ProjectStatus, string> = {

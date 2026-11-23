@@ -27,6 +27,7 @@ function typeLabel(type: ProjectType, t: ReturnType<typeof useLocale>["t"]) {
     sorting: t.typeSorting,
     construction: t.typeConstruction,
     rental: t.typeRental,
+    "personal-account": t.typePersonalAccount,
     other: t.typeOther,
   };
   return labels[type];
@@ -36,6 +37,7 @@ function TypeIcon({ type, className = "size-5" }: { type: ProjectType; className
   if (type === "export") return <Leaf className={className} aria-hidden="true" />;
   if (type === "cold-storage") return <Snowflake className={className} aria-hidden="true" />;
   if (type === "sorting") return <Warehouse className={className} aria-hidden="true" />;
+  if (type === "personal-account") return <Landmark className={className} aria-hidden="true" />;
   return <Building2 className={className} aria-hidden="true" />;
 }
 
@@ -45,6 +47,7 @@ const projectTypeStyles: Record<ProjectType, { header: string; icon: string; ink
   sorting: { header: "bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100", icon: "bg-amber-200 text-amber-950", ink: "text-amber-950", status: "bg-amber-200/80 text-amber-950" },
   construction: { header: "bg-gradient-to-br from-violet-100 via-purple-50 to-indigo-100", icon: "bg-violet-200 text-violet-950", ink: "text-violet-950", status: "bg-violet-200/80 text-violet-950" },
   rental: { header: "bg-gradient-to-br from-rose-100 via-pink-50 to-red-100", icon: "bg-rose-200 text-rose-950", ink: "text-rose-950", status: "bg-rose-200/80 text-rose-950" },
+  "personal-account": { header: "bg-gradient-to-br from-teal-100 via-cyan-50 to-sky-100", icon: "bg-teal-200 text-teal-950", ink: "text-teal-950", status: "bg-teal-200/80 text-teal-950" },
   other: { header: "bg-gradient-to-br from-stone-100 via-slate-50 to-gray-100", icon: "bg-stone-200 text-stone-900", ink: "text-stone-950", status: "bg-stone-200/80 text-stone-950" },
 };
 
@@ -252,6 +255,7 @@ export function ProjectDashboard() {
     sorting: t.typeSorting,
     construction: t.typeConstruction,
     rental: t.typeRental,
+    "personal-account": t.typePersonalAccount,
     other: t.typeOther,
   };
   const statusNames: Record<ProjectStatus, string> = {
@@ -364,7 +368,7 @@ export function ProjectDashboard() {
                 const typeStyle = projectTypeStyles[validType];
                 return (
                   <article key={project.id} className="group overflow-hidden rounded-[22px] border border-line bg-paper transition duration-300 hover:-translate-y-0.5 hover:border-sage-dark hover:shadow-lg hover:shadow-forest/5">
-                    <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.name}`} className="block w-full text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark">
+                    <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : validType === "personal-account" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/personal`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.name}`} className="block w-full text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark">
                       <div className={`${typeStyle.header} ${typeStyle.ink} flex min-h-[62px] items-center justify-between gap-3 px-4 py-3`}>
                         <div className="flex min-w-0 items-center gap-3">
                           <span className={`grid size-10 shrink-0 place-items-center rounded-2xl ${typeStyle.icon}`}><TypeIcon type={validType} className="size-5" /></span>

@@ -68,6 +68,7 @@ export function ProjectForm({ initial, isEdit, busy, error, onSubmit, onCancel, 
     sorting: t.typeSorting,
     construction: t.typeConstruction,
     rental: t.typeRental,
+    "personal-account": t.typePersonalAccount,
     other: t.typeOther,
   };
   const statusLabels: Record<ProjectStatus, string> = {
