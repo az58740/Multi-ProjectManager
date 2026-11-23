@@ -39,13 +39,13 @@ function TypeIcon({ type, className = "size-5" }: { type: ProjectType; className
   return <Building2 className={className} aria-hidden="true" />;
 }
 
-const projectTypeStyles: Record<ProjectType, { header: string; icon: string }> = {
-  export: { header: "bg-emerald-700", icon: "bg-emerald-500/25" },
-  "cold-storage": { header: "bg-sky-700", icon: "bg-sky-500/25" },
-  sorting: { header: "bg-orange-700", icon: "bg-orange-500/25" },
-  construction: { header: "bg-violet-700", icon: "bg-violet-500/25" },
-  rental: { header: "bg-rose-700", icon: "bg-rose-500/25" },
-  other: { header: "bg-slate-700", icon: "bg-slate-500/25" },
+const projectTypeStyles: Record<ProjectType, { header: string; icon: string; accent: string }> = {
+  export: { header: "bg-emerald-700", icon: "bg-emerald-500/25", accent: "border-t-emerald-700" },
+  "cold-storage": { header: "bg-sky-700", icon: "bg-sky-500/25", accent: "border-t-sky-700" },
+  sorting: { header: "bg-orange-700", icon: "bg-orange-500/25", accent: "border-t-orange-700" },
+  construction: { header: "bg-violet-700", icon: "bg-violet-500/25", accent: "border-t-violet-700" },
+  rental: { header: "bg-rose-700", icon: "bg-rose-500/25", accent: "border-t-rose-700" },
+  other: { header: "bg-slate-700", icon: "bg-slate-500/25", accent: "border-t-slate-700" },
 };
 
 function statusLabel(status: ProjectStatus, t: ReturnType<typeof useLocale>["t"]) {
@@ -226,6 +226,10 @@ export function ProjectDashboard() {
     paused: projects.filter((project) => project.status === "paused").length,
     completed: projects.filter((project) => project.status === "completed").length,
   }), [projects]);
+  const typeCounts = useMemo(() => PROJECT_TYPES.map((type) => ({
+    type,
+    count: projects.filter((project) => project.type === type).length,
+  })), [projects]);
 
   if (sessionError) {
     return <main className="grid min-h-screen place-items-center bg-cream p-6"><section className="w-full max-w-lg rounded-[28px] border border-line bg-paper p-7 text-center"><p role="alert" className="text-sm leading-7 text-muted">{m.sessionError}</p><button type="button" onClick={() => setSessionAttempt((current) => current + 1)} className="mt-4 min-h-12 rounded-full bg-forest px-6 text-sm font-bold text-white">{m.retry}</button></section></main>;
@@ -326,7 +330,16 @@ export function ProjectDashboard() {
           </div>}
 
           {section !== "overview" ? (projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
-          <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
+          <div aria-label={isFa ? "آمار پروژه‌ها بر اساس نوع" : "Project counts by type"} className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+            {typeCounts.map(({ type, count }) => {
+              const typeStyle = projectTypeStyles[type];
+              const selected = typeFilter === type;
+              return <button key={type} type="button" aria-pressed={selected} onClick={() => setTypeFilter(selected ? "all" : type)} className={`overflow-hidden rounded-2xl border border-line border-t-4 bg-paper px-3 py-2.5 text-start transition hover:-translate-y-0.5 hover:shadow-md ${typeStyle.accent} ${selected ? "ring-2 ring-forest/20" : ""}`}>
+                <span className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-extrabold text-muted">{typeNames[type]}</span><span className={`${typeStyle.header} grid size-6 shrink-0 place-items-center rounded-lg text-[11px] font-black text-white`}>{count.toLocaleString(isFa ? "fa-IR" : "en-US")}</span></span>
+              </button>;
+            })}
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
               <label htmlFor="project-search" className="sr-only">{t.projectSearch}</label>
