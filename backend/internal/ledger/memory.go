@@ -32,6 +32,9 @@ func (s *MemoryStore) CreateAccount(_ context.Context, projectID string, in Acco
 	if !validAccount(in) {
 		return Account{}, ErrInvalidInput
 	}
+	if in.OpeningBalance == "" {
+		in.OpeningBalance = "0"
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, a := range s.accounts {
@@ -48,9 +51,30 @@ func (s *MemoryStore) CreateAccount(_ context.Context, projectID string, in Acco
 	if in.Scope == "project" {
 		sharedScope = "project"
 	}
-	a := Account{ID: id, Scope: in.Scope, SharedScope: sharedScope, ProjectID: pid, Code: newID("ACC-"), Name: in.Name, AccountNumber: strings.TrimSpace(in.AccountNumber), BankName: strings.TrimSpace(in.BankName), AccountType: in.AccountType, Currency: in.Currency, IsActive: true, CreatedAt: time.Now().UTC()}
+	a := Account{ID: id, Scope: in.Scope, SharedScope: sharedScope, ProjectID: pid, Code: newID("ACC-"), Name: in.Name, AccountNumber: strings.TrimSpace(in.AccountNumber), BankName: strings.TrimSpace(in.BankName), AccountType: in.AccountType, Currency: in.Currency, OpeningBalance: in.OpeningBalance, CurrentBalance: in.OpeningBalance, IsActive: true, CreatedAt: time.Now().UTC()}
 	s.accounts = append(s.accounts, a)
 	return a, nil
+}
+
+func (s *MemoryStore) UpdateAccount(_ context.Context, projectID, id string, in AccountInput) (Account, error) {
+	in.Scope, in.SharedScope = "project", "project"
+	if !validAccount(in) {
+		return Account{}, ErrInvalidInput
+	}
+	if in.OpeningBalance == "" {
+		in.OpeningBalance = "0"
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.accounts {
+		if s.accounts[i].ID == id && (s.accounts[i].ProjectID == projectID || s.accounts[i].Scope == "shared") {
+			a := &s.accounts[i]
+			a.Name, a.AccountNumber, a.BankName, a.Currency, a.AccountType, a.OpeningBalance = in.Name, in.AccountNumber, in.BankName, in.Currency, in.AccountType, in.OpeningBalance
+			a.CurrentBalance = in.OpeningBalance
+			return *a, nil
+		}
+	}
+	return Account{}, ErrAccountNotFound
 }
 func (s *MemoryStore) ListEntries(_ context.Context, projectID string) ([]JournalEntry, error) {
 	s.mu.RLock()
@@ -78,7 +102,8 @@ func (s *MemoryStore) ListProducts(_ context.Context, projectID string) ([]Produ
 
 func (s *MemoryStore) CreateProduct(_ context.Context, projectID string, in ProductInput) (Product, error) {
 	in.Currency = strings.ToUpper(strings.TrimSpace(in.Currency))
-	if _, err := prepareProduct(in); err != nil {
+	var err error
+	if in, err = prepareProduct(in); err != nil {
 		return Product{}, err
 	}
 	s.mu.Lock()
@@ -91,6 +116,24 @@ func (s *MemoryStore) CreateProduct(_ context.Context, projectID string, in Prod
 	p.Code = newID("SKU-")
 	s.products = append(s.products, p)
 	return p, nil
+}
+
+func (s *MemoryStore) UpdateProduct(_ context.Context, projectID, id string, in ProductInput) (Product, error) {
+	in.Scope, in.SharedScope = "project", "project"
+	var err error
+	if in, err = prepareProduct(in); err != nil {
+		return Product{}, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.products {
+		if s.products[i].ID == id && s.products[i].ProjectID == projectID {
+			s.products[i].Name, s.products[i].ItemType, s.products[i].Unit, s.products[i].Currency = in.Name, in.ItemType, in.Unit, in.Currency
+			s.products[i].OpeningStock, s.products[i].CurrentStock = in.OpeningStock, in.CurrentStock
+			return s.products[i], nil
+		}
+	}
+	return Product{}, ErrProductNotFound
 }
 
 func (s *MemoryStore) ListExchanges(_ context.Context, projectID string) ([]Exchange, error) {

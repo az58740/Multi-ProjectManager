@@ -15,43 +15,49 @@ var (
 	ErrInvalidInput    = errors.New("invalid ledger input")
 	ErrConflict        = errors.New("ledger idempotency conflict")
 	ErrAccountNotFound = errors.New("ledger account not found")
+	ErrProductNotFound = errors.New("ledger product not found")
 )
 
 var ProductTypes = map[string]bool{"resale": true, "supply": true}
 
 type AccountInput struct {
-	Scope         string `json:"scope"`
-	SharedScope   string `json:"sharedScope"`
-	Code          string `json:"code"`
-	Name          string `json:"name"`
-	AccountNumber string `json:"accountNumber"`
-	BankName      string `json:"bankName"`
-	AccountType   string `json:"accountType"`
-	Currency      string `json:"currency"`
+	Scope          string `json:"scope"`
+	SharedScope    string `json:"sharedScope"`
+	Code           string `json:"code"`
+	Name           string `json:"name"`
+	AccountNumber  string `json:"accountNumber"`
+	BankName       string `json:"bankName"`
+	AccountType    string `json:"accountType"`
+	Currency       string `json:"currency"`
+	OpeningBalance string `json:"openingBalance"`
 }
 type Account struct {
-	ID            string    `json:"id"`
-	Scope         string    `json:"scope"`
-	SharedScope   string    `json:"sharedScope"`
-	ProjectID     string    `json:"projectId"`
-	Code          string    `json:"code"`
-	Name          string    `json:"name"`
-	AccountNumber string    `json:"accountNumber"`
-	BankName      string    `json:"bankName"`
-	AccountType   string    `json:"accountType"`
-	Currency      string    `json:"currency"`
-	IsActive      bool      `json:"isActive"`
-	CreatedAt     time.Time `json:"createdAt"`
+	ID             string    `json:"id"`
+	Scope          string    `json:"scope"`
+	SharedScope    string    `json:"sharedScope"`
+	ProjectID      string    `json:"projectId"`
+	Code           string    `json:"code"`
+	Name           string    `json:"name"`
+	AccountNumber  string    `json:"accountNumber"`
+	BankName       string    `json:"bankName"`
+	AccountType    string    `json:"accountType"`
+	Currency       string    `json:"currency"`
+	IsActive       bool      `json:"isActive"`
+	OpeningBalance string    `json:"openingBalance"`
+	CurrentBalance string    `json:"currentBalance"`
+	CreatedAt      time.Time `json:"createdAt"`
 }
 
 type ProductInput struct {
-	Code        string `json:"code"`
-	Name        string `json:"name"`
-	ItemType    string `json:"itemType"`
-	Unit        string `json:"unit"`
-	Currency    string `json:"currency"`
-	Scope       string `json:"scope"`
-	SharedScope string `json:"sharedScope"`
+	Code         string `json:"code"`
+	Name         string `json:"name"`
+	ItemType     string `json:"itemType"`
+	Unit         string `json:"unit"`
+	Currency     string `json:"currency"`
+	Scope        string `json:"scope"`
+	SharedScope  string `json:"sharedScope"`
+	OpeningStock string `json:"openingStock"`
+	CurrentStock string `json:"currentStock"`
 }
 
 type Product struct {
@@ -111,8 +117,10 @@ type JournalEntry struct {
 type Store interface {
 	ListAccounts(context.Context, string) ([]Account, error)
 	CreateAccount(context.Context, string, AccountInput) (Account, error)
+	UpdateAccount(context.Context, string, string, AccountInput) (Account, error)
 	ListProducts(context.Context, string) ([]Product, error)
 	CreateProduct(context.Context, string, ProductInput) (Product, error)
+	UpdateProduct(context.Context, string, string, ProductInput) (Product, error)
 	ListExchanges(context.Context, string) ([]Exchange, error)
 	CreateExchange(context.Context, string, ExchangeInput) (Exchange, error)
 	ListEntries(context.Context, string) ([]JournalEntry, error)
@@ -147,19 +155,24 @@ func currency(v string) bool {
 	return true
 }
 func validAccount(in AccountInput) bool {
-	in.Code, in.Name, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.ToUpper(strings.TrimSpace(in.Currency))
+	in.Code, in.Name, in.Currency, in.OpeningBalance = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.ToUpper(strings.TrimSpace(in.Currency)), strings.TrimSpace(in.OpeningBalance)
+	if in.OpeningBalance == "" {
+		in.OpeningBalance = "0"
+	}
 	if in.SharedScope == "" && in.Scope == "project" {
 		in.SharedScope = "project"
 	}
 	if in.SharedScope == "" && in.Scope == "shared" {
 		in.SharedScope = "all"
 	}
-	return (in.Scope == "project" || in.Scope == "shared") && (in.Scope == "project" || map[string]bool{"all": true, "export": true, "cold-storage": true, "sorting": true, "construction": true, "rental": true, "other": true}[in.SharedScope]) && in.Name != "" && currency(in.Currency) && map[string]bool{"asset": true, "liability": true, "equity": true, "revenue": true, "expense": true}[in.AccountType]
+	_, _, balanceOK := decimal(in.OpeningBalance, false)
+	return (in.Scope == "project" || in.Scope == "shared") && (in.Scope == "project" || map[string]bool{"all": true, "export": true, "cold-storage": true, "sorting": true, "construction": true, "rental": true, "other": true}[in.SharedScope]) && in.Name != "" && currency(in.Currency) && balanceOK && map[string]bool{"asset": true, "liability": true, "equity": true, "revenue": true, "expense": true}[in.AccountType]
 }
 
 func prepareProduct(in ProductInput) (ProductInput, error) {
 	in.Code, in.Name, in.ItemType, in.Unit, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.TrimSpace(in.ItemType), strings.TrimSpace(in.Unit), strings.ToUpper(strings.TrimSpace(in.Currency))
 	in.Scope, in.SharedScope = strings.TrimSpace(in.Scope), strings.TrimSpace(in.SharedScope)
+	in.OpeningStock, in.CurrentStock = strings.TrimSpace(in.OpeningStock), strings.TrimSpace(in.CurrentStock)
 	if in.Scope == "" {
 		in.Scope = "project"
 	}
@@ -168,6 +181,18 @@ func prepareProduct(in ProductInput) (ProductInput, error) {
 	}
 	if in.Scope == "project" {
 		in.SharedScope = "project"
+	}
+	if in.OpeningStock == "" {
+		in.OpeningStock = "0"
+	}
+	if in.CurrentStock == "" {
+		in.CurrentStock = in.OpeningStock
+	}
+	if _, _, openingOK := decimal(in.OpeningStock, false); !openingOK {
+		return ProductInput{}, ErrInvalidInput
+	}
+	if _, _, currentOK := decimal(in.CurrentStock, false); !currentOK {
+		return ProductInput{}, ErrInvalidInput
 	}
 	if in.Name == "" || !ProductTypes[in.ItemType] || in.Unit == "" || !currency(in.Currency) || (in.Scope != "project" && in.Scope != "shared") || (in.Scope == "shared" && !map[string]bool{"all": true, "export": true, "cold-storage": true, "sorting": true, "construction": true, "rental": true, "other": true}[in.SharedScope]) || strings.ContainsRune(in.Name, 0) || strings.ContainsRune(in.Unit, 0) {
 		return ProductInput{}, ErrInvalidInput

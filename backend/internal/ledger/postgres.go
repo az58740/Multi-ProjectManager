@@ -7,6 +7,7 @@ import (
 	"github.com/az58740/multi-project-manager/backend/internal/dbconfig"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"math/big"
 	"strings"
 	"time"
 )
@@ -30,11 +31,12 @@ func NewPostgresStore(ctx context.Context, url string) (*PostgresStore, error) {
 }
 func (s *PostgresStore) Close() { s.pool.Close() }
 
-const accountCols = `id, scope, COALESCE(shared_scope,''), COALESCE(project_id,''), code, name, COALESCE(account_number,''), COALESCE(bank_name,''), account_type, COALESCE(currency,''), is_active, created_at`
+const accountCols = `id, scope, COALESCE(shared_scope,''), COALESCE(project_id,''), code, name, COALESCE(account_number,''), COALESCE(bank_name,''), account_type, COALESCE(currency,''), is_active, opening_balance::text, created_at`
 
 func scanAccount(row interface{ Scan(...any) error }) (Account, error) {
 	var a Account
-	e := row.Scan(&a.ID, &a.Scope, &a.SharedScope, &a.ProjectID, &a.Code, &a.Name, &a.AccountNumber, &a.BankName, &a.AccountType, &a.Currency, &a.IsActive, &a.CreatedAt)
+	e := row.Scan(&a.ID, &a.Scope, &a.SharedScope, &a.ProjectID, &a.Code, &a.Name, &a.AccountNumber, &a.BankName, &a.AccountType, &a.Currency, &a.IsActive, &a.OpeningBalance, &a.CreatedAt)
+	a.CurrentBalance = a.OpeningBalance
 	return a, e
 }
 func (s *PostgresStore) ListAccounts(ctx context.Context, pid string) ([]Account, error) {
@@ -51,10 +53,41 @@ func (s *PostgresStore) ListAccounts(ctx context.Context, pid string) ([]Account
 		}
 		out = append(out, a)
 	}
-	return out, rows.Err()
+	if e = rows.Err(); e != nil {
+		return nil, e
+	}
+	balances, e := s.pool.Query(ctx, `SELECT l.account_id, COALESCE(SUM(l.debit_amount-l.credit_amount),0)::text FROM ledger_journal_lines l JOIN ledger_journal_entries e ON e.id=l.entry_id WHERE e.project_id=$1 GROUP BY l.account_id`, pid)
+	if e != nil {
+		return nil, e
+	}
+	defer balances.Close()
+	current := map[string]string{}
+	for balances.Next() {
+		var id, value string
+		if e = balances.Scan(&id, &value); e != nil {
+			return nil, e
+		}
+		current[id] = value
+	}
+	if e = balances.Err(); e != nil {
+		return nil, e
+	}
+	for i := range out {
+		if value, ok := current[out[i].ID]; ok {
+			opening, _ := new(big.Rat).SetString(out[i].OpeningBalance)
+			movement, _ := new(big.Rat).SetString(value)
+			if opening != nil && movement != nil {
+				out[i].CurrentBalance = strings.TrimRight(strings.TrimRight(new(big.Rat).Add(opening, movement).FloatString(12), "0"), ".")
+			}
+		}
+	}
+	return out, nil
 }
 func (s *PostgresStore) CreateAccount(ctx context.Context, pid string, in AccountInput) (Account, error) {
 	in.Code, in.Name, in.AccountNumber, in.BankName, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.TrimSpace(in.AccountNumber), strings.TrimSpace(in.BankName), strings.ToUpper(strings.TrimSpace(in.Currency))
+	if in.OpeningBalance == "" {
+		in.OpeningBalance = "0"
+	}
 	if !validAccount(in) {
 		return Account{}, ErrInvalidInput
 	}
@@ -64,7 +97,7 @@ func (s *PostgresStore) CreateAccount(ctx context.Context, pid string, in Accoun
 		project = pid
 		sharedScope = "project"
 	}
-	a, e := scanAccount(s.pool.QueryRow(ctx, `INSERT INTO ledger_accounts(id,scope,shared_scope,project_id,code,name,account_number,bank_name,account_type,currency) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING `+accountCols, newID("acct_"), in.Scope, sharedScope, project, newID("ACC-"), in.Name, in.AccountNumber, in.BankName, in.AccountType, in.Currency))
+	a, e := scanAccount(s.pool.QueryRow(ctx, `INSERT INTO ledger_accounts(id,scope,shared_scope,project_id,code,name,account_number,bank_name,account_type,currency,opening_balance) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING `+accountCols, newID("acct_"), in.Scope, sharedScope, project, newID("ACC-"), in.Name, in.AccountNumber, in.BankName, in.AccountType, in.Currency, in.OpeningBalance))
 	if e != nil {
 		if isUnique(e) {
 			return Account{}, ErrConflict
@@ -72,6 +105,23 @@ func (s *PostgresStore) CreateAccount(ctx context.Context, pid string, in Accoun
 		return Account{}, e
 	}
 	return a, nil
+}
+
+func (s *PostgresStore) UpdateAccount(ctx context.Context, pid, id string, in AccountInput) (Account, error) {
+	in.Name, in.AccountNumber, in.BankName, in.Currency = strings.TrimSpace(in.Name), strings.TrimSpace(in.AccountNumber), strings.TrimSpace(in.BankName), strings.ToUpper(strings.TrimSpace(in.Currency))
+	if in.OpeningBalance == "" {
+		in.OpeningBalance = "0"
+	}
+	in.Scope = "project"
+	in.SharedScope = "project"
+	if !validAccount(in) {
+		return Account{}, ErrInvalidInput
+	}
+	a, err := scanAccount(s.pool.QueryRow(ctx, `UPDATE ledger_accounts SET name=$1, account_number=$2, bank_name=$3, currency=$4, account_type=$5, opening_balance=$6 WHERE id=$7 AND (project_id=$8 OR scope='shared') RETURNING `+accountCols, in.Name, in.AccountNumber, in.BankName, in.Currency, in.AccountType, in.OpeningBalance, id, pid))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Account{}, ErrAccountNotFound
+	}
+	return a, err
 }
 func (s *PostgresStore) ListEntries(ctx context.Context, pid string) ([]JournalEntry, error) {
 	rows, e := s.pool.Query(ctx, `SELECT id,project_id,entry_date::text,description,idempotency_key,COALESCE(created_by,''),created_at FROM ledger_journal_entries WHERE project_id=$1 ORDER BY entry_date DESC,id DESC`, pid)
@@ -171,11 +221,11 @@ func (s *PostgresStore) CreateEntry(ctx context.Context, pid, actor string, in E
 	return entry, nil
 }
 
-const productCols = `id, COALESCE(project_id,''), code, name, item_type, unit, currency, is_active, created_at, scope, shared_scope`
+const productCols = `id, COALESCE(project_id,''), code, name, item_type, unit, currency, is_active, opening_stock::text, current_stock::text, created_at, scope, shared_scope`
 
 func scanProduct(row interface{ Scan(...any) error }) (Product, error) {
 	var p Product
-	err := row.Scan(&p.ID, &p.ProjectID, &p.Code, &p.Name, &p.ItemType, &p.Unit, &p.Currency, &p.IsActive, &p.CreatedAt, &p.Scope, &p.SharedScope)
+	err := row.Scan(&p.ID, &p.ProjectID, &p.Code, &p.Name, &p.ItemType, &p.Unit, &p.Currency, &p.IsActive, &p.OpeningStock, &p.CurrentStock, &p.CreatedAt, &p.Scope, &p.SharedScope)
 	return p, err
 }
 
@@ -205,7 +255,7 @@ func (s *PostgresStore) CreateProduct(ctx context.Context, pid string, in Produc
 	if in.Scope == "shared" {
 		projectID = nil
 	}
-	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency,scope,shared_scope) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING `+productCols, newID("prod_"), projectID, newID("SKU-"), in.Name, in.ItemType, in.Unit, in.Currency, in.Scope, in.SharedScope))
+	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency,scope,shared_scope,opening_stock,current_stock) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING `+productCols, newID("prod_"), projectID, newID("SKU-"), in.Name, in.ItemType, in.Unit, in.Currency, in.Scope, in.SharedScope, in.OpeningStock, in.CurrentStock))
 	if err != nil {
 		if isUnique(err) {
 			return Product{}, ErrConflict
@@ -213,6 +263,19 @@ func (s *PostgresStore) CreateProduct(ctx context.Context, pid string, in Produc
 		return Product{}, err
 	}
 	return p, nil
+}
+
+func (s *PostgresStore) UpdateProduct(ctx context.Context, pid, id string, in ProductInput) (Product, error) {
+	in.Scope, in.SharedScope = "project", "project"
+	in, err := prepareProduct(in)
+	if err != nil {
+		return Product{}, err
+	}
+	p, err := scanProduct(s.pool.QueryRow(ctx, `UPDATE ledger_products SET name=$1, item_type=$2, unit=$3, currency=$4, opening_stock=$5, current_stock=$6 WHERE id=$7 AND project_id=$8 RETURNING `+productCols, in.Name, in.ItemType, in.Unit, in.Currency, in.OpeningStock, in.CurrentStock, id, pid))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Product{}, ErrProductNotFound
+	}
+	return p, err
 }
 
 func isUnique(e error) bool {

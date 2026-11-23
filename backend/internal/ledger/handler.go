@@ -18,8 +18,10 @@ func NewHandler(p projects.Store, s Store) *Handler { return &Handler{projects: 
 func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/projects/{code}/ledger/accounts", h.accounts)
 	mux.HandleFunc("POST /api/v1/projects/{code}/ledger/accounts", h.createAccount)
+	mux.HandleFunc("PUT /api/v1/projects/{code}/ledger/accounts/{id}", h.updateAccount)
 	mux.HandleFunc("GET /api/v1/projects/{code}/ledger/products", h.products)
 	mux.HandleFunc("POST /api/v1/projects/{code}/ledger/products", h.createProduct)
+	mux.HandleFunc("PUT /api/v1/projects/{code}/ledger/products/{id}", h.updateProduct)
 	mux.HandleFunc("GET /api/v1/projects/{code}/ledger/exchanges", h.exchanges)
 	mux.HandleFunc("POST /api/v1/projects/{code}/ledger/exchanges", h.createExchange)
 	mux.HandleFunc("GET /api/v1/projects/{code}/ledger/entries", h.entries)
@@ -82,6 +84,31 @@ func (h *Handler) entries(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"items": items})
 }
 
+func (h *Handler) updateAccount(w http.ResponseWriter, r *http.Request) {
+	p, ok := h.project(w, r)
+	if !ok {
+		return
+	}
+	var in AccountInput
+	if !decode(w, r, &in) {
+		return
+	}
+	a, err := h.store.UpdateAccount(r.Context(), p.ID, r.PathValue("id"), in)
+	if errors.Is(err, ErrInvalidInput) {
+		writeError(w, 400, "اطلاعات حساب معتبر نیست.")
+		return
+	}
+	if errors.Is(err, ErrAccountNotFound) {
+		writeError(w, 404, "حساب پیدا نشد.")
+		return
+	}
+	if err != nil {
+		writeError(w, 500, "ویرایش حساب ممکن نشد.")
+		return
+	}
+	writeJSON(w, 200, a)
+}
+
 func (h *Handler) products(w http.ResponseWriter, r *http.Request) {
 	p, ok := h.project(w, r)
 	if !ok {
@@ -131,6 +158,31 @@ func (h *Handler) exchanges(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{"items": items})
+}
+
+func (h *Handler) updateProduct(w http.ResponseWriter, r *http.Request) {
+	p, ok := h.project(w, r)
+	if !ok {
+		return
+	}
+	var in ProductInput
+	if !decode(w, r, &in) {
+		return
+	}
+	item, err := h.store.UpdateProduct(r.Context(), p.ID, r.PathValue("id"), in)
+	if errors.Is(err, ErrInvalidInput) {
+		writeError(w, 400, "اطلاعات کالا معتبر نیست.")
+		return
+	}
+	if errors.Is(err, ErrProductNotFound) {
+		writeError(w, 404, "کالا پیدا نشد.")
+		return
+	}
+	if err != nil {
+		writeError(w, 500, "ویرایش کالا ممکن نشد.")
+		return
+	}
+	writeJSON(w, 200, item)
 }
 
 func (h *Handler) createExchange(w http.ResponseWriter, r *http.Request) {
