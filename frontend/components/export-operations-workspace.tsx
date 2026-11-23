@@ -58,9 +58,9 @@ export function ExportOperationsWorkspace({ code }: { code: string }) {
   const assetAccounts = useMemo(() => accounts.filter((item) => item.accountType === "asset"), [accounts]);
   const payableAccounts = useMemo(() => accounts.filter((item) => ["asset", "liability"].includes(item.accountType)), [accounts]);
   const revenueAccounts = useMemo(() => accounts.filter((item) => item.accountType === "revenue"), [accounts]);
-  const transactionProducts = useMemo(() => products.filter((item) => item.itemType === "resale"), [products]);
+  const transactionProducts = useMemo(() => products.filter((item) => item.itemType === "resale" && (item.scope === "project" || (item.scope === "shared" && ["all", "export"].includes(item.sharedScope)))), [products]);
   const projectProducts = useMemo(() => transactionProducts.filter((item) => item.scope === "project"), [transactionProducts]);
-  const sharedProducts = useMemo(() => transactionProducts.filter((item) => item.scope === "shared"), [transactionProducts]);
+  const sharedProducts = useMemo(() => transactionProducts.filter((item) => item.scope === "shared" && ["all", "export"].includes(item.sharedScope)), [transactionProducts]);
 
   function resetTransaction() {
     setProductId(""); setAmount(""); setRate("1"); setDebitAccount(""); setCreditAccount("");
@@ -69,7 +69,7 @@ export function ExportOperationsWorkspace({ code }: { code: string }) {
   async function createProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setMessage("");
     try {
-      const response = await fetchWithTimeout(`${path}/products`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ name: productForm.name.trim(), itemType: productForm.itemType, unit: productForm.unit.trim(), currency: productForm.currency }) });
+      const response = await fetchWithTimeout(`${path}/products`, { method: "POST", headers: jsonHeaders(), body: JSON.stringify({ name: productForm.name.trim(), itemType: productForm.itemType, unit: productForm.unit.trim(), currency: productForm.currency, scope: "project", sharedScope: "project" }) });
       if (!response.ok) throw new Error("save");
       setProductForm({ name: "", itemType: "resale", unit: "kg", currency: "USD" });
       await load(); setMessage(fa ? "کالا یا ملزومات ثبت شد." : "Product or supply saved."); setFormModal(null);
