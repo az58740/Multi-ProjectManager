@@ -69,7 +69,7 @@ func (s *MemoryStore) ListProducts(_ context.Context, projectID string) ([]Produ
 	defer s.mu.RUnlock()
 	out := []Product{}
 	for _, p := range s.products {
-		if p.ProjectID == projectID && p.IsActive {
+		if (p.ProjectID == projectID || (p.Scope == "shared" && p.SharedScope == "all")) && p.IsActive {
 			out = append(out, p)
 		}
 	}
@@ -83,7 +83,11 @@ func (s *MemoryStore) CreateProduct(_ context.Context, projectID string, in Prod
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	p := Product{ID: newID("prod_"), ProjectID: projectID, ProductInput: in, IsActive: true, CreatedAt: time.Now().UTC()}
+	pid := projectID
+	if in.Scope == "shared" {
+		pid = ""
+	}
+	p := Product{ID: newID("prod_"), ProjectID: pid, ProductInput: in, IsActive: true, CreatedAt: time.Now().UTC()}
 	p.Code = newID("SKU-")
 	s.products = append(s.products, p)
 	return p, nil

@@ -18,8 +18,10 @@ export type LedgerAccount = {
 };
 
 export type LedgerProduct = {
-  id: string;
-  projectId: string;
+	id: string;
+	scope: LedgerAccountScope;
+	sharedScope: LedgerSharedScope;
+	projectId: string;
   code: string;
   name: string;
   itemType: "resale" | "supply";
@@ -98,7 +100,7 @@ export function isLedgerAccountList(value: unknown): value is { items: LedgerAcc
 }
 
 export function isLedgerProductList(value: unknown): value is { items: LedgerProduct[] } {
-	return record(value) && Array.isArray(value.items) && value.items.every((item) => record(item) && typeof item.id === "string" && typeof item.projectId === "string" && typeof item.code === "string" && typeof item.name === "string" && (item.itemType === "resale" || item.itemType === "supply") && typeof item.unit === "string" && typeof item.currency === "string" && typeof item.isActive === "boolean" && typeof item.createdAt === "string");
+	return record(value) && Array.isArray(value.items) && value.items.every((item) => record(item) && typeof item.id === "string" && (item.scope === "project" || item.scope === "shared") && typeof item.sharedScope === "string" && typeof item.projectId === "string" && typeof item.code === "string" && typeof item.name === "string" && (item.itemType === "resale" || item.itemType === "supply") && typeof item.unit === "string" && typeof item.currency === "string" && typeof item.isActive === "boolean" && typeof item.createdAt === "string");
 }
 
 export function isLedgerExchangeList(value: unknown): value is { items: LedgerExchange[] } {

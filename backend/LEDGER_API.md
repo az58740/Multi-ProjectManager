@@ -43,7 +43,7 @@
 - `GET /api/v1/projects/{code}/ledger/products`
 - `POST /api/v1/projects/{code}/ledger/products`
 
-کد کالا (`code`) توسط سیستم با پیشوند `SKU-` ساخته می‌شود و کاربر نباید آن را وارد کند. درخواست فقط شامل `name`, `itemType`, `unit` و `currency` است.
+کد کالا (`code`) توسط سیستم با پیشوند `SKU-` ساخته می‌شود و کاربر نباید آن را وارد کند. درخواست شامل `name`, `itemType`, `unit`, `currency` و به‌صورت اختیاری `scope` است. مقدار `scope` می‌تواند `project` یا `shared` باشد؛ در حالت `shared`، مقدار اختیاری `sharedScope` می‌تواند `all` یا نوع پروژه مانند `export` باشد. پاسخ `GET` کالاهای اختصاصی پروژه و کالاهای مشترک مجاز برای همان نوع پروژه را برمی‌گرداند.
 
 ## Journal entries
 

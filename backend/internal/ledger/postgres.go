@@ -171,16 +171,16 @@ func (s *PostgresStore) CreateEntry(ctx context.Context, pid, actor string, in E
 	return entry, nil
 }
 
-const productCols = `id, project_id, code, name, item_type, unit, currency, is_active, created_at`
+const productCols = `id, COALESCE(project_id,''), code, name, item_type, unit, currency, is_active, created_at, scope, shared_scope`
 
 func scanProduct(row interface{ Scan(...any) error }) (Product, error) {
 	var p Product
-	err := row.Scan(&p.ID, &p.ProjectID, &p.Code, &p.Name, &p.ItemType, &p.Unit, &p.Currency, &p.IsActive, &p.CreatedAt)
+	err := row.Scan(&p.ID, &p.ProjectID, &p.Code, &p.Name, &p.ItemType, &p.Unit, &p.Currency, &p.IsActive, &p.CreatedAt, &p.Scope, &p.SharedScope)
 	return p, err
 }
 
 func (s *PostgresStore) ListProducts(ctx context.Context, pid string) ([]Product, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+productCols+` FROM ledger_products WHERE project_id=$1 AND is_active ORDER BY item_type, name, id`, pid)
+	rows, err := s.pool.Query(ctx, `SELECT `+productCols+` FROM ledger_products WHERE is_active AND (project_id=$1 OR (scope='shared' AND (shared_scope='all' OR shared_scope=(SELECT type FROM projects WHERE id=$1)))) ORDER BY scope, item_type, name, id`, pid)
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,11 @@ func (s *PostgresStore) CreateProduct(ctx context.Context, pid string, in Produc
 	if err != nil {
 		return Product{}, err
 	}
-	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING `+productCols, newID("prod_"), pid, newID("SKU-"), in.Name, in.ItemType, in.Unit, in.Currency))
+	projectID := any(pid)
+	if in.Scope == "shared" {
+		projectID = nil
+	}
+	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency,scope,shared_scope) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING `+productCols, newID("prod_"), projectID, newID("SKU-"), in.Name, in.ItemType, in.Unit, in.Currency, in.Scope, in.SharedScope))
 	if err != nil {
 		if isUnique(err) {
 			return Product{}, ErrConflict

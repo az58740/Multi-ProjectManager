@@ -45,11 +45,13 @@ type Account struct {
 }
 
 type ProductInput struct {
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	ItemType string `json:"itemType"`
-	Unit     string `json:"unit"`
-	Currency string `json:"currency"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	ItemType    string `json:"itemType"`
+	Unit        string `json:"unit"`
+	Currency    string `json:"currency"`
+	Scope       string `json:"scope"`
+	SharedScope string `json:"sharedScope"`
 }
 
 type Product struct {
@@ -157,7 +159,17 @@ func validAccount(in AccountInput) bool {
 
 func prepareProduct(in ProductInput) (ProductInput, error) {
 	in.Code, in.Name, in.ItemType, in.Unit, in.Currency = strings.TrimSpace(in.Code), strings.TrimSpace(in.Name), strings.TrimSpace(in.ItemType), strings.TrimSpace(in.Unit), strings.ToUpper(strings.TrimSpace(in.Currency))
-	if in.Name == "" || !ProductTypes[in.ItemType] || in.Unit == "" || !currency(in.Currency) || strings.ContainsRune(in.Name, 0) || strings.ContainsRune(in.Unit, 0) {
+	in.Scope, in.SharedScope = strings.TrimSpace(in.Scope), strings.TrimSpace(in.SharedScope)
+	if in.Scope == "" {
+		in.Scope = "project"
+	}
+	if in.Scope == "shared" && in.SharedScope == "" {
+		in.SharedScope = "all"
+	}
+	if in.Scope == "project" {
+		in.SharedScope = "project"
+	}
+	if in.Name == "" || !ProductTypes[in.ItemType] || in.Unit == "" || !currency(in.Currency) || (in.Scope != "project" && in.Scope != "shared") || (in.Scope == "shared" && !map[string]bool{"all": true, "export": true, "cold-storage": true, "sorting": true, "construction": true, "rental": true, "other": true}[in.SharedScope]) || strings.ContainsRune(in.Name, 0) || strings.ContainsRune(in.Unit, 0) {
 		return ProductInput{}, ErrInvalidInput
 	}
 	return in, nil
