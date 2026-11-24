@@ -317,13 +317,13 @@ export function ProjectDashboard() {
           )}
           {section === "overview" && <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="m-0 text-xl font-black leading-tight tracking-tight text-forest sm:text-3xl">{t.dashboardKicker}</h1>
+              <h1 className="m-0 truncate text-base font-black leading-tight tracking-tight text-forest sm:text-2xl">{t.dashboardKicker}</h1>
               <p className="mb-0 mt-1 hidden text-sm leading-7 text-muted sm:block">{t.dashboardSubtitle}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               {isAdmin && <Link href="/dashboard/users" className="hidden min-h-11 items-center justify-center gap-2 rounded-full border border-sage-dark bg-paper px-4 text-sm font-extrabold text-forest transition hover:bg-sage sm:inline-flex"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
               <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-forest px-4 text-xs font-extrabold text-white shadow-md shadow-forest/10 transition hover:-translate-y-0.5 hover:bg-forest-light sm:px-5 sm:text-sm">
-                <CirclePlus className="size-4" aria-hidden="true" />{t.createProject}
+                <CirclePlus className="size-4" aria-hidden="true" />{isFa ? "پروژه" : "Project"}
               </button>
             </div>
           </div>}
