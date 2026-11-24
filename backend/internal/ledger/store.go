@@ -22,6 +22,7 @@ var ProductTypes = map[string]bool{"resale": true, "supply": true}
 
 type AccountInput struct {
 	Scope          string `json:"scope"`
+	ScopeProjectID string `json:"scopeProjectId,omitempty"`
 	SharedScope    string `json:"sharedScope"`
 	Code           string `json:"code"`
 	Name           string `json:"name"`
@@ -50,23 +51,23 @@ type Account struct {
 }
 
 type ProductInput struct {
-	Code         string `json:"code"`
-	Name         string `json:"name"`
-	ItemType     string `json:"itemType"`
-	Unit         string `json:"unit"`
-	Currency     string `json:"currency"`
-	Scope        string `json:"scope"`
-	SharedScope  string `json:"sharedScope"`
-	OpeningStock string `json:"openingStock"`
-	CurrentStock string `json:"currentStock"`
-	IsActive     bool   `json:"isActive"`
+	Code           string `json:"code"`
+	ScopeProjectID string `json:"scopeProjectId,omitempty"`
+	Name           string `json:"name"`
+	ItemType       string `json:"itemType"`
+	Unit           string `json:"unit"`
+	Currency       string `json:"currency"`
+	Scope          string `json:"scope"`
+	SharedScope    string `json:"sharedScope"`
+	OpeningStock   string `json:"openingStock"`
+	CurrentStock   string `json:"currentStock"`
+	IsActive       bool   `json:"isActive"`
 }
 
 type Product struct {
 	ID        string `json:"id"`
 	ProjectID string `json:"projectId"`
 	ProductInput
-	IsActive  bool      `json:"isActive"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 type ExchangeInput struct {

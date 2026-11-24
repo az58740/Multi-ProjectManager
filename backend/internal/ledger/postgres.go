@@ -95,9 +95,12 @@ func (s *PostgresStore) CreateAccount(ctx context.Context, pid string, in Accoun
 	sharedScope := strings.TrimSpace(in.SharedScope)
 	if in.Scope == "project" {
 		project = pid
+		if in.ScopeProjectID != "" {
+			project = in.ScopeProjectID
+		}
 		sharedScope = "project"
 	}
-	a, e := scanAccount(s.pool.QueryRow(ctx, `INSERT INTO ledger_accounts(id,scope,shared_scope,project_id,code,name,account_number,bank_name,account_type,currency,opening_balance) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING `+accountCols, newID("acct_"), in.Scope, sharedScope, project, newID("ACC-"), in.Name, in.AccountNumber, in.BankName, in.AccountType, in.Currency, in.OpeningBalance))
+	a, e := scanAccount(s.pool.QueryRow(ctx, `INSERT INTO ledger_accounts(id,scope,shared_scope,project_id,code,name,account_number,bank_name,account_type,currency,opening_balance,is_active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING `+accountCols, newID("acct_"), in.Scope, sharedScope, project, newID("ACC-"), in.Name, in.AccountNumber, in.BankName, in.AccountType, in.Currency, in.OpeningBalance, in.IsActive))
 	if e != nil {
 		if isUnique(e) {
 			return Account{}, ErrConflict
@@ -116,6 +119,9 @@ func (s *PostgresStore) UpdateAccount(ctx context.Context, pid, id string, in Ac
 		return Account{}, ErrInvalidInput
 	}
 	projectID := any(pid)
+	if in.Scope == "project" && in.ScopeProjectID != "" {
+		projectID = in.ScopeProjectID
+	}
 	if in.Scope == "shared" {
 		projectID = nil
 		if in.SharedScope == "" {
@@ -257,10 +263,13 @@ func (s *PostgresStore) CreateProduct(ctx context.Context, pid string, in Produc
 		return Product{}, err
 	}
 	projectID := any(pid)
+	if in.Scope == "project" && in.ScopeProjectID != "" {
+		projectID = in.ScopeProjectID
+	}
 	if in.Scope == "shared" {
 		projectID = nil
 	}
-	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency,scope,shared_scope,opening_stock,current_stock) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING `+productCols, newID("prod_"), projectID, newID("SKU-"), in.Name, in.ItemType, in.Unit, in.Currency, in.Scope, in.SharedScope, in.OpeningStock, in.CurrentStock))
+	p, err := scanProduct(s.pool.QueryRow(ctx, `INSERT INTO ledger_products(id,project_id,code,name,item_type,unit,currency,scope,shared_scope,opening_stock,current_stock,is_active) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING `+productCols, newID("prod_"), projectID, newID("SKU-"), in.Name, in.ItemType, in.Unit, in.Currency, in.Scope, in.SharedScope, in.OpeningStock, in.CurrentStock, in.IsActive))
 	if err != nil {
 		if isUnique(err) {
 			return Product{}, ErrConflict
@@ -276,6 +285,9 @@ func (s *PostgresStore) UpdateProduct(ctx context.Context, pid, id string, in Pr
 		return Product{}, err
 	}
 	projectID := any(pid)
+	if in.Scope == "project" && in.ScopeProjectID != "" {
+		projectID = in.ScopeProjectID
+	}
 	if in.Scope == "shared" {
 		projectID = nil
 		if in.SharedScope == "" {

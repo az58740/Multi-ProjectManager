@@ -44,6 +44,9 @@ func (s *MemoryStore) CreateAccount(_ context.Context, projectID string, in Acco
 	}
 	id := newID("acct_")
 	pid := projectID
+	if in.Scope == "project" && in.ScopeProjectID != "" {
+		pid = in.ScopeProjectID
+	}
 	if in.Scope == "shared" {
 		pid = ""
 	}
@@ -51,7 +54,7 @@ func (s *MemoryStore) CreateAccount(_ context.Context, projectID string, in Acco
 	if in.Scope == "project" {
 		sharedScope = "project"
 	}
-	a := Account{ID: id, Scope: in.Scope, SharedScope: sharedScope, ProjectID: pid, Code: newID("ACC-"), Name: in.Name, AccountNumber: strings.TrimSpace(in.AccountNumber), BankName: strings.TrimSpace(in.BankName), AccountType: in.AccountType, Currency: in.Currency, OpeningBalance: in.OpeningBalance, CurrentBalance: in.OpeningBalance, IsActive: true, CreatedAt: time.Now().UTC()}
+	a := Account{ID: id, Scope: in.Scope, SharedScope: sharedScope, ProjectID: pid, Code: newID("ACC-"), Name: in.Name, AccountNumber: strings.TrimSpace(in.AccountNumber), BankName: strings.TrimSpace(in.BankName), AccountType: in.AccountType, Currency: in.Currency, OpeningBalance: in.OpeningBalance, CurrentBalance: in.OpeningBalance, IsActive: in.IsActive, CreatedAt: time.Now().UTC()}
 	s.accounts = append(s.accounts, a)
 	return a, nil
 }
@@ -70,6 +73,9 @@ func (s *MemoryStore) UpdateAccount(_ context.Context, projectID, id string, in 
 			a := &s.accounts[i]
 			a.Name, a.AccountNumber, a.BankName, a.Currency, a.AccountType, a.OpeningBalance, a.IsActive = in.Name, in.AccountNumber, in.BankName, in.Currency, in.AccountType, in.OpeningBalance, in.IsActive
 			a.Scope, a.SharedScope, a.ProjectID = in.Scope, in.SharedScope, projectID
+			if in.Scope == "project" && in.ScopeProjectID != "" {
+				a.ProjectID = in.ScopeProjectID
+			}
 			if in.Scope == "shared" {
 				a.ProjectID = ""
 			}
@@ -112,10 +118,13 @@ func (s *MemoryStore) CreateProduct(_ context.Context, projectID string, in Prod
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	pid := projectID
+	if in.Scope == "project" && in.ScopeProjectID != "" {
+		pid = in.ScopeProjectID
+	}
 	if in.Scope == "shared" {
 		pid = ""
 	}
-	p := Product{ID: newID("prod_"), ProjectID: pid, ProductInput: in, IsActive: true, CreatedAt: time.Now().UTC()}
+	p := Product{ID: newID("prod_"), ProjectID: pid, ProductInput: in, CreatedAt: time.Now().UTC()}
 	p.Code = newID("SKU-")
 	s.products = append(s.products, p)
 	return p, nil
@@ -132,6 +141,9 @@ func (s *MemoryStore) UpdateProduct(_ context.Context, projectID, id string, in 
 		if s.products[i].ID == id && (s.products[i].ProjectID == projectID || s.products[i].Scope == "shared") {
 			s.products[i].Name, s.products[i].ItemType, s.products[i].Unit, s.products[i].Currency, s.products[i].IsActive = in.Name, in.ItemType, in.Unit, in.Currency, in.IsActive
 			s.products[i].Scope, s.products[i].SharedScope, s.products[i].ProjectID = in.Scope, in.SharedScope, projectID
+			if in.Scope == "project" && in.ScopeProjectID != "" {
+				s.products[i].ProjectID = in.ScopeProjectID
+			}
 			if in.Scope == "shared" {
 				s.products[i].ProjectID = ""
 			}
