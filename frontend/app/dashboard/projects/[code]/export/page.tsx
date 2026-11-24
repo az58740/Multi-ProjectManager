@@ -3,13 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowRight, BarChart3, BookOpen, Leaf, LoaderCircle, LogOut, ScrollText, UsersRound } from "lucide-react";
+import { ArrowRight, Boxes, Leaf, LoaderCircle, LogOut, ShoppingCart, ScrollText, TrendingUp } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
-import { ExportWorkspace } from "@/components/export-workspace";
 import { ExportOperationsWorkspace } from "@/components/export-operations-workspace";
-import { ExportStats } from "@/components/export-stats";
-import { LedgerWorkspace } from "@/components/ledger-workspace";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ProjectDetails } from "@/components/project-details";
 import { ProjectForm } from "@/components/project-form";
@@ -20,7 +17,7 @@ import { exportMessages } from "@/lib/export-i18n";
 import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/http";
 import { isProjectListPayload, isProjectRecord, type Project, type ProjectWritePayload } from "@/lib/projects";
 
-type ExportSection = "overview" | "records" | "ledger";
+type ExportSection = "sales" | "purchases" | "catalog";
 
 export default function ExportDashboardPage() {
   const params = useParams<{ code: string }>();
@@ -37,7 +34,7 @@ export default function ExportDashboardPage() {
   const editBusyRef = useRef(false);
   const [editError, setEditError] = useState(false);
   const [projectSaved, setProjectSaved] = useState(false);
-  const [section, setSection] = useState<ExportSection>("overview");
+  const [section, setSection] = useState<ExportSection>("sales");
   const code = typeof params.code === "string" ? params.code : "";
   const closeModal = useCallback(() => setModal(null), []);
 
@@ -97,19 +94,19 @@ export default function ExportDashboardPage() {
 
   return (
     <main className="min-h-screen bg-cream pb-24 lg:pb-0">
-      <header className="border-b border-line bg-paper"><div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8"><Link href="/dashboard" className="inline-flex items-center gap-3"><BrandMark /></Link><div className="flex items-center gap-2 sm:gap-3"><span dir="ltr" className="hidden rounded-lg bg-cream px-2 py-1 font-mono text-[10px] font-black text-forest sm:inline">{project.code}</span><LanguageToggle /><button type="button" onClick={() => void signOut()} aria-label={t.logout} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line px-3 text-sm font-semibold text-muted transition hover:bg-cream hover:text-forest"><LogOut className="size-4" aria-hidden="true" /><span className="hidden sm:inline">{t.logout}</span></button></div></div></header>
+      <header className="border-b border-line bg-paper"><div className="mx-auto flex max-w-[1440px] items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-6 sm:py-3 lg:px-8"><Link href="/dashboard" className="inline-flex items-center gap-3"><BrandMark /></Link><div className="flex items-center gap-2 sm:gap-3"><span dir="ltr" className="hidden rounded-lg bg-cream px-2 py-1 font-mono text-[10px] font-black text-forest sm:inline">{project.code}</span><LanguageToggle /><button type="button" onClick={() => void signOut()} aria-label={t.logout} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line px-3 text-sm font-semibold text-muted transition hover:bg-cream hover:text-forest"><LogOut className="size-4" aria-hidden="true" /><span className="hidden sm:inline">{t.logout}</span></button></div></div></header>
       <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-sm font-extrabold text-forest"><ArrowRight className={`size-4 ${locale === "en" ? "rotate-180" : ""}`} aria-hidden="true" />{t.exportBackToProjects}</Link>
         {demoMode && <div className="mt-5 rounded-2xl border border-amber/30 bg-amber-soft/80 px-4 py-3 text-xs font-semibold leading-6 text-forest sm:text-sm">{t.demoBanner}</div>}
         {logoutError && <div role="alert" className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{accountMessages[locale].logoutError}</div>}
         {projectSaved && <div role="status" className="mt-5 rounded-2xl border border-sage-dark bg-sage px-4 py-3 text-sm font-bold text-forest">{m.projectSaved}</div>}
-        <section className="mt-4 overflow-hidden rounded-[22px] border border-emerald-200 bg-gradient-to-br from-emerald-100 via-green-50 to-teal-100 p-4 text-emerald-950 shadow-sm sm:p-5">
-          <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-200 text-emerald-900"><Leaf className="size-4" aria-hidden="true" /></span><div className="min-w-0"><p className="mb-0 truncate text-[10px] font-extrabold uppercase tracking-[0.14em] text-emerald-900">{t.exportDashboardKicker}</p><h1 className="mb-0 mt-0.5 truncate text-xl font-black tracking-tight">{project.name}</h1></div></div><div className="flex shrink-0 items-center gap-2"><span className="hidden rounded-full bg-emerald-200/80 px-2.5 py-1 text-[10px] font-bold text-emerald-950 sm:inline">{m.projectStatus[project.status]}</span><button type="button" onClick={() => { setEditError(false); setModal("details"); }} className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border border-emerald-300 px-3 text-[11px] font-bold text-emerald-950 transition hover:bg-white/50"><ScrollText className="size-3.5" aria-hidden="true" />{m.projectDetails}</button></div></div>
+        <section className="mt-4 overflow-hidden rounded-[22px] border border-emerald-200 bg-gradient-to-br from-emerald-100 via-green-50 to-teal-100 p-3 text-emerald-950 shadow-sm sm:p-5">
+          <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-200 text-emerald-900"><Leaf className="size-4" aria-hidden="true" /></span><div className="min-w-0"><p className="mb-0 truncate text-[9px] font-extrabold uppercase tracking-[0.1em] text-emerald-900">{t.exportDashboardKicker}</p><h1 className="mb-0 mt-0.5 truncate text-base font-black tracking-tight sm:text-xl">{project.name}</h1></div></div><div className="flex shrink-0 items-center gap-2"><span className="hidden rounded-full bg-emerald-200/80 px-2.5 py-1 text-[10px] font-bold text-emerald-950 sm:inline">{m.projectStatus[project.status]}</span><button type="button" onClick={() => { setEditError(false); setModal("details"); }} className="inline-flex min-h-8 items-center justify-center gap-1 rounded-full border border-emerald-300 px-2.5 text-[10px] font-bold sm:min-h-9 sm:gap-1.5 sm:px-3 sm:text-[11px] text-emerald-950 transition hover:bg-white/50"><ScrollText className="size-3.5" aria-hidden="true" />{m.projectDetails}</button></div></div>
         </section>
-        <nav aria-label={locale === "fa" ? "منوی داشبورد صادرات" : "Export dashboard navigation"} className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-3 gap-1 rounded-[22px] border border-line bg-paper/95 p-2 shadow-xl shadow-forest/10 backdrop-blur lg:sticky lg:top-3 lg:mt-3 lg:flex lg:gap-2 lg:rounded-2xl lg:p-2"><button type="button" onClick={() => setSection("overview")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-2 text-[10px] font-extrabold lg:min-h-10 lg:flex-row lg:gap-2 lg:px-4 lg:text-xs ${section === "overview" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><BarChart3 className="size-4" />{locale === "fa" ? "نمای کلی" : "Overview"}</button><button type="button" onClick={() => setSection("records")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-2 text-[10px] font-extrabold lg:min-h-10 lg:flex-row lg:gap-2 lg:px-4 lg:text-xs ${section === "records" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><UsersRound className="size-4" />{locale === "fa" ? "رکوردها" : "Records"}</button><button type="button" onClick={() => setSection("ledger")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-xl px-2 text-[10px] font-extrabold lg:min-h-10 lg:flex-row lg:gap-2 lg:px-4 lg:text-xs ${section === "ledger" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><BookOpen className="size-4" />{locale === "fa" ? "دفترکل" : "Ledger"}</button></nav>
-        {section === "overview" && <><ExportOperationsWorkspace code={project.code} /><ExportStats code={project.code} /></>}
-        {section === "records" && <ExportWorkspace key={project.code} code={project.code} />}
-        {section === "ledger" && <LedgerWorkspace code={project.code} />}
+        <nav aria-label={locale === "fa" ? "منوی داشبورد صادرات" : "Export dashboard navigation"} className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-3 gap-1 rounded-[22px] border border-line bg-paper/95 p-2 shadow-xl shadow-forest/10 backdrop-blur lg:sticky lg:top-3 lg:mt-3 lg:flex lg:gap-2 lg:rounded-2xl lg:p-2"><button type="button" onClick={() => setSection("sales")} className={`flex min-h-12 items-center justify-center gap-1 rounded-xl px-2 text-[10px] font-extrabold lg:min-h-10 lg:gap-2 lg:px-4 lg:text-xs ${section === "sales" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><TrendingUp className="size-4" />{locale === "fa" ? "فروش‌ها" : "Sales"}</button><button type="button" onClick={() => setSection("purchases")} className={`flex min-h-12 items-center justify-center gap-1 rounded-xl px-2 text-[10px] font-extrabold lg:min-h-10 lg:gap-2 lg:px-4 lg:text-xs ${section === "purchases" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><ShoppingCart className="size-4" />{locale === "fa" ? "خریدها" : "Purchases"}</button><button type="button" onClick={() => setSection("catalog")} className={`flex min-h-12 items-center justify-center gap-1 rounded-xl px-2 text-[10px] font-extrabold lg:min-h-10 lg:gap-2 lg:px-4 lg:text-xs ${section === "catalog" ? "bg-forest text-white" : "text-muted hover:bg-cream"}`}><Boxes className="size-4" />{locale === "fa" ? "کالاها" : "Products"}</button></nav>
+        {section === "sales" && <ExportOperationsWorkspace code={project.code} mode="sale" />}
+        {section === "purchases" && <ExportOperationsWorkspace code={project.code} mode="purchase" />}
+        {section === "catalog" && <ExportOperationsWorkspace code={project.code} mode="catalog" />}
       </div>
       {modal && <ProjectModal title={modal === "details" ? t.projectDetails : t.editProjectTitle} onClose={closeModal}>{modal === "details" ? <ProjectDetails project={project} onEdit={() => { setEditError(false); setModal("edit"); }} /> : <ProjectForm initial={project} isEdit busy={editBusy} error={editError ? m.projectSaveError : ""} currencyNote={m.currencyNote} onSubmit={(input) => void saveProject(input)} onCancel={closeModal} />}</ProjectModal>}
     </main>
