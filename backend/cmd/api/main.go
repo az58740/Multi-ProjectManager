@@ -104,7 +104,26 @@ func run() error {
 		}
 	}
 	if !hasAdmin {
-		return errors.New("An active administrator is required. For an empty user store, set BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD before starting the server; existing users are never auto-promoted")
+		promoted, promoteErr := authStore.PromoteSoleActiveUser(ctx)
+		if promoteErr != nil {
+			return fmt.Errorf("administrator verification failed: %w", promoteErr)
+		}
+		if promoted {
+			log.Print("The sole active user was promoted to the initial administrator")
+			users, err = authStore.List(ctx)
+			if err != nil {
+				return fmt.Errorf("administrator verification failed: %w", err)
+			}
+			for _, u := range users {
+				if u.Role == "admin" && u.Status == "active" {
+					hasAdmin = true
+					break
+				}
+			}
+		}
+	}
+	if !hasAdmin {
+		return errors.New("An active administrator is required. For an empty user store, set BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_ADMIN_PASSWORD before starting the server")
 	}
 	mux := http.NewServeMux()
 	localAuth.Register(mux)

@@ -37,6 +37,7 @@ type Store interface {
 	Create(context.Context, record, string) (User, error)
 	ByEmail(context.Context, string) (record, error)
 	List(context.Context) ([]User, error)
+	PromoteSoleActiveUser(context.Context) (bool, error)
 	Update(context.Context, string, string, changes) (User, error)
 	NewSession(context.Context, string, string, []byte, time.Time) error
 	Session(context.Context, []byte) (User, error)
@@ -118,6 +119,24 @@ func (s *MemoryStore) List(_ context.Context) ([]User, error) {
 	sort.Slice(out, func(i, j int) bool { return out[i].CreatedAt.Before(out[j].CreatedAt) })
 	return out, nil
 }
+func (s *MemoryStore) PromoteSoleActiveUser(_ context.Context) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	active := make([]string, 0, 1)
+	for id, r := range s.users {
+		if r.Status == "active" {
+			active = append(active, id)
+		}
+	}
+	if len(active) != 1 || s.users[active[0]].Role == "admin" {
+		return false, nil
+	}
+	r := s.users[active[0]]
+	r.Role = "admin"
+	s.users[active[0]] = r
+	return true, nil
+}
+
 func (s *MemoryStore) Update(_ context.Context, actor, id string, c changes) (User, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

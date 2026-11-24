@@ -132,6 +132,35 @@ func (s *PostgresStore) List(ctx context.Context) ([]User, error) {
 	}
 	return out, rows.Err()
 }
+func (s *PostgresStore) PromoteSoleActiveUser(ctx context.Context) (bool, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback(ctx)
+	if err = lockUsers(ctx, tx); err != nil {
+		return false, err
+	}
+	var id string
+	if err = tx.QueryRow(ctx, `SELECT id FROM auth_users WHERE status='active' ORDER BY created_at,id LIMIT 2`).Scan(&id); err == nil {
+		var second string
+		if e := tx.QueryRow(ctx, `SELECT id FROM auth_users WHERE status='active' ORDER BY created_at,id OFFSET 1 LIMIT 1`).Scan(&second); e == nil {
+			return false, tx.Commit(ctx)
+		}
+		if err = tx.QueryRow(ctx, `UPDATE auth_users SET role='admin' WHERE id=$1 AND role<>'admin' RETURNING id`, id).Scan(&id); err != nil {
+			return false, err
+		}
+		if err = tx.Commit(ctx); err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, tx.Commit(ctx)
+	}
+	return false, err
+}
+
 func (s *PostgresStore) Update(ctx context.Context, actor, id string, c changes) (User, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
