@@ -8,8 +8,9 @@
 
 - مخزن GitHub: [`az58740/Multi-ProjectManager`](https://github.com/az58740/Multi-ProjectManager)
 - شاخهٔ اصلی: `main`
-- مسیر کاری فعلی: `/home/ubuntu/work/Multi-ProjectManager`
-- آخرین تغییر UI منتشرشده: commit `410b30c` با عنوان `feat: redesign compact project and export dashboards`
+- مسیر کاری فعلی: `/home/ubuntu/Multi-ProjectManager`
+- آخرین تغییرات GitHub: commit `d94b2b1` با عنوان `fix: remove export dashboard stats and compact typography`
+- تغییرات قبلی مرتبط با داشبورد صادرات: `0c58a6b`، `f1f7c5f`، `d87163f` و `62fc787`
 - deployment production فعلی: پروژهٔ Vercel با نام `multi-project-manager`
 - دامنهٔ production ثبت‌شده: `https://multi-project-manager-rho.vercel.app`
 - stack اصلی: Next.js 16، React 19، TypeScript، Tailwind CSS، Go، PostgreSQL و Docker
@@ -188,13 +189,15 @@ gofmt -w .
 
 داشبورد اصلی در `frontend/components/project-dashboard.tsx` پروژه‌ها را با کارت‌های compact نمایش می‌دهد. بخش «منابع و کاتالوگ» از منوی دسکتاپ و navigation موبایل قابل دسترسی است و حساب‌ها و کالاها را برای پروژهٔ انتخابی مدیریت می‌کند.
 
-داشبورد صادرات در `frontend/app/dashboard/projects/[code]/export/page.tsx` سه بخش دارد:
+داشبورد صادرات در `frontend/app/dashboard/projects/[code]/export/page.tsx` و `frontend/components/export-operations-workspace.tsx` این navigation را دارد:
 
-1. **نمای کلی:** عملیات خرید، تعریف کالا و آمار خلاصه.
-2. **طرف‌حساب و محموله:** فهرست compact و modalهای ثبت/ویرایش.
-3. **دفترکل:** حساب‌ها و سندهای پروژه.
+1. **فروش‌ها:** فهرست فروش‌های پروژه و ثبت فروش جدید برای کالاهای `resale`.
+2. **خریدها:** فهرست خریدهای پروژه و ثبت خرید جدید برای کالاهای `resale`.
+3. **کالاها:** صفحهٔ مدیریت کالا و ملزومات با کارت‌های compact و فقط دکمهٔ ویرایش.
 
-در دسکتاپ منوها کنار یا در نوار بالایی قرار می‌گیرند و در موبایل به‌صورت navigation افقی/بالایی نمایش داده می‌شوند. فرم‌های ثبت و ویرایش باید modal باقی بمانند و به‌صورت inline دائمی به صفحه برنگردند.
+در حالت «کالاها»، منوی پایین اختصاصی سه گزینه دارد: «ثبت کالا و ملزومات»، «خرید ملزومات» و «فروش ملزومات». گزینهٔ ثبت کالا فیلترهای «همه کالاها»، «قابل خرید و فروش» و «ملزومات» دارد. فرم ثبت/ویرایش شامل نام، دسته‌بندی، واحد، دامنهٔ اختصاصی یا مشترک، گروه اشتراک، ارز، وضعیت و موجودی اول سال/فعلی است؛ کد کالا توسط backend ساخته می‌شود. در ابتدای هر سه حالت دکمهٔ «بازگشت به منوی اصلی» وجود دارد.
+
+در موبایل متن منوهای پایین با اندازهٔ بسیار کوچک و چینش فشرده نمایش داده می‌شود. آمار خلاصهٔ داشبورد صادرات فعلاً عمداً حذف شده است. فرم‌های ثبت و ویرایش در `ProjectModal` باز می‌شوند و باید modal باقی بمانند.
 
 ## قرارداد APIهای اصلی
 
@@ -331,6 +334,12 @@ docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
 - برای retry درخواست‌های قابل‌تکرار، idempotency key و رفتار backend را رعایت کنید.
 - تصاویر ویترین در `frontend/public/images/` هستند و منبع/مجوزشان در [`docs/ASSETS.md`](docs/ASSETS.md) ثبت شده است.
 
+## وضعیت آخرین تحویل
+
+آخرین commit روی `origin/main` با موفقیت push شده است. آخرین build و typecheck فرانت‌اند موفق بوده‌اند و working tree پاک است. Deployment روی Vercel در این تحویل به‌صورت مستقل تأیید نشده است؛ صرفاً push به GitHub را deployment موفق تلقی نکنید.
+
+برای ادامهٔ کار، ابتدا `README.md`، `TODO.md`، `plan.md` و قراردادهای `backend/EXPORT_API.md` و `backend/LEDGER_API.md` را بخوانید. سپس با `git pull origin main` آخرین کد را دریافت کنید و پیش از تغییرات `pnpm typecheck` و در صورت تغییر backend، `pnpm test:api` را اجرا کنید.
+
 ## وضعیت قابلیت‌ها و roadmap
 
 ### تکمیل‌شده
@@ -339,10 +348,14 @@ docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
 - ورود، ثبت‌نام، نشست قابل ابطال و مدیریت کاربران توسط مدیر.
 - CRUD پروژه‌ها با جست‌وجو، فیلتر، وضعیت، مسئول، حسابدار، موقعیت و مقصد.
 - داشبورد فشردهٔ پروژه‌ها با navigation منابع و کاتالوگ.
-- داشبورد صادرات با navigation نمای کلی، عملیات، رکوردها و دفترکل.
+- داشبورد صادرات فشرده و mobile-first با منوی فروش‌ها، خریدها و کالاها.
+- مدیریت کاربران برای مدیر در `/dashboard/users` و لینک کاربران در منوی پایین داشبورد اصلی.
+- مدیریت کالا و ملزومات پروژه با فیلتر دسته‌بندی، کارت‌های compact و ویرایش.
+- فرم کامل ثبت/ویرایش کالا با دامنهٔ project/shared، گروه اشتراک، وضعیت و موجودی‌ها.
+- منوی اختصاصی کالا برای ثبت کالا، خرید ملزومات و فروش ملزومات با دکمهٔ بازگشت به منوی اصلی.
 - ثبت طرف‌حساب و محموله با PostgreSQL و memory demo.
 - حساب‌های project/shared و سندهای balanced با decimal string و idempotency.
-- ثبت خرید اولیه و ایجاد خودکار سند حسابداری در workspace عملیات.
+- ثبت خرید و فروش و ایجاد خودکار سند حسابداری در workspace عملیات.
 - فرم‌های ثبت عملیات، کالا، طرف‌حساب و محموله به‌صورت modal.
 
 ### کارهای باز و اولویت‌دار
