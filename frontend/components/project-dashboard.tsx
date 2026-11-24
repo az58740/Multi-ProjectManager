@@ -47,7 +47,7 @@ const projectTypeStyles: Record<ProjectType, { header: string; icon: string; ink
   sorting: { header: "bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100", icon: "bg-amber-200 text-amber-950", ink: "text-amber-950", status: "bg-amber-200/80 text-amber-950" },
   construction: { header: "bg-gradient-to-br from-violet-100 via-purple-50 to-indigo-100", icon: "bg-violet-200 text-violet-950", ink: "text-violet-950", status: "bg-violet-200/80 text-violet-950" },
   rental: { header: "bg-gradient-to-br from-rose-100 via-pink-50 to-red-100", icon: "bg-rose-200 text-rose-950", ink: "text-rose-950", status: "bg-rose-200/80 text-rose-950" },
-  "personal-account": { header: "bg-gradient-to-br from-teal-100 via-cyan-50 to-sky-100", icon: "bg-teal-200 text-teal-950", ink: "text-teal-950", status: "bg-teal-200/80 text-teal-950" },
+  "personal-account": { header: "bg-gradient-to-br from-slate-200 via-stone-100 to-zinc-200", icon: "bg-slate-300 text-slate-950", ink: "text-slate-950", status: "bg-slate-300/80 text-slate-950" },
   other: { header: "bg-gradient-to-br from-stone-100 via-slate-50 to-gray-100", icon: "bg-stone-200 text-stone-900", ink: "text-stone-950", status: "bg-stone-200/80 text-stone-950" },
 };
 
