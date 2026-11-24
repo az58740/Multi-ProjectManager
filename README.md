@@ -9,7 +9,7 @@
 - مخزن GitHub: [`az58740/Multi-ProjectManager`](https://github.com/az58740/Multi-ProjectManager)
 - شاخهٔ اصلی: `main`
 - مسیر کاری فعلی: `/home/ubuntu/Multi-ProjectManager`
-- آخرین تغییرات GitHub: commit `d94b2b1` با عنوان `fix: remove export dashboard stats and compact typography`
+- آخرین تغییرات GitHub: commit `53aeea3` با عنوان `feat: promote sole active user and compact product filter`
 - تغییرات قبلی مرتبط با داشبورد صادرات: `0c58a6b`، `f1f7c5f`، `d87163f` و `62fc787`
 - deployment production فعلی: پروژهٔ Vercel با نام `multi-project-manager`
 - دامنهٔ production ثبت‌شده: `https://multi-project-manager-rho.vercel.app`
@@ -168,7 +168,7 @@ gofmt -w .
 
 - ورود با ایمیل و رمز عبور محلی انجام می‌شود؛ Manus OAuth در این پروژه استفاده نمی‌شود.
 - نشست در backend ایجاد و قابل ابطال است.
-- ثبت‌نام عمومی در نسخهٔ فعلی بدون تأیید ایمیل یا تأیید مدیر حساب را فعال می‌کند.
+- ثبت‌نام عمومی در نسخهٔ فعلی بدون تأیید ایمیل یا تأیید مدیر حساب را فعال می‌کند. کاربر فعال یگانه در شروع سرویس می‌تواند مدیر اولیه شود؛ این رفتار فقط برای رفع نبود مدیر و حفظ دسترسی مدیریتی اولیه است.
 - مدیر می‌تواند کاربران را ایجاد/ویرایش کند، نام، نقش، وضعیت و رمز را تغییر دهد.
 - حداقل یک مدیر فعال باید باقی بماند.
 - تمام کاربران فعال فعلاً به همهٔ پروژه‌ها دسترسی دارند؛ مجوز مستقل برای هر پروژه هنوز پیاده نشده است.
