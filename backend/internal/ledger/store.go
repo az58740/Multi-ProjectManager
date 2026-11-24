@@ -30,6 +30,7 @@ type AccountInput struct {
 	AccountType    string `json:"accountType"`
 	Currency       string `json:"currency"`
 	OpeningBalance string `json:"openingBalance"`
+	IsActive       bool   `json:"isActive"`
 }
 type Account struct {
 	ID             string    `json:"id"`
@@ -58,6 +59,7 @@ type ProductInput struct {
 	SharedScope  string `json:"sharedScope"`
 	OpeningStock string `json:"openingStock"`
 	CurrentStock string `json:"currentStock"`
+	IsActive     bool   `json:"isActive"`
 }
 
 type Product struct {

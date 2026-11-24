@@ -27,13 +27,13 @@ export function ExportStats({ code }: { code: string }) {
       setStats({
         counterparties: isListOf(counterparties.payload, isCounterparty) ? counterparties.payload.items.length : 0,
         shipments: isListOf(shipments.payload, isShipment) ? shipments.payload.items.length : 0,
-        accounts: isLedgerAccountList(accounts.payload) ? accounts.payload.items.length : 0,
+        accounts: isLedgerAccountList(accounts.payload) ? accounts.payload.items.filter((item) => item.isActive).length : 0,
       });
       if (isLedgerProductList(productResponse.payload)) setProducts(productResponse.payload.items);
     }).catch(() => undefined);
   }, [code]);
 
-  const filteredProducts = useMemo(() => scopeFilter === "all" ? products : products.filter((item) => item.scope === scopeFilter), [products, scopeFilter]);
+  const filteredProducts = useMemo(() => products.filter((item) => item.isActive && (scopeFilter === "all" || item.scope === scopeFilter)), [products, scopeFilter]);
   const cards = [[UsersRound, fa ? "طرف‌حساب‌ها" : "Counterparties", stats.counterparties], [Boxes, fa ? "محموله‌ها" : "Shipments", stats.shipments], [PackageCheck, fa ? "کالاها" : "Products", filteredProducts.length], [BookOpen, fa ? "حساب‌های فعال" : "Ledger accounts", stats.accounts]] as const;
   const filters: { value: ProductScopeFilter; fa: string; en: string }[] = [
     { value: "all", fa: "همه کالاها", en: "All products" },

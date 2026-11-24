@@ -112,12 +112,17 @@ func (s *PostgresStore) UpdateAccount(ctx context.Context, pid, id string, in Ac
 	if in.OpeningBalance == "" {
 		in.OpeningBalance = "0"
 	}
-	in.Scope = "project"
-	in.SharedScope = "project"
 	if !validAccount(in) {
 		return Account{}, ErrInvalidInput
 	}
-	a, err := scanAccount(s.pool.QueryRow(ctx, `UPDATE ledger_accounts SET name=$1, account_number=$2, bank_name=$3, currency=$4, account_type=$5, opening_balance=$6 WHERE id=$7 AND (project_id=$8 OR scope='shared') RETURNING `+accountCols, in.Name, in.AccountNumber, in.BankName, in.Currency, in.AccountType, in.OpeningBalance, id, pid))
+	projectID := any(pid)
+	if in.Scope == "shared" {
+		projectID = nil
+		if in.SharedScope == "" {
+			in.SharedScope = "all"
+		}
+	}
+	a, err := scanAccount(s.pool.QueryRow(ctx, `UPDATE ledger_accounts SET scope=$1, shared_scope=$2, project_id=$3, name=$4, account_number=$5, bank_name=$6, currency=$7, account_type=$8, opening_balance=$9, is_active=$10 WHERE id=$11 AND (project_id=$12 OR scope='shared') RETURNING `+accountCols, in.Scope, in.SharedScope, projectID, in.Name, in.AccountNumber, in.BankName, in.Currency, in.AccountType, in.OpeningBalance, in.IsActive, id, pid))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Account{}, ErrAccountNotFound
 	}
@@ -230,7 +235,7 @@ func scanProduct(row interface{ Scan(...any) error }) (Product, error) {
 }
 
 func (s *PostgresStore) ListProducts(ctx context.Context, pid string) ([]Product, error) {
-	rows, err := s.pool.Query(ctx, `SELECT `+productCols+` FROM ledger_products WHERE is_active AND (project_id=$1 OR (scope='shared' AND (shared_scope='all' OR shared_scope=(SELECT type FROM projects WHERE id=$1)))) ORDER BY scope, item_type, name, id`, pid)
+	rows, err := s.pool.Query(ctx, `SELECT `+productCols+` FROM ledger_products WHERE (project_id=$1 OR (scope='shared' AND (shared_scope='all' OR shared_scope=(SELECT type FROM projects WHERE id=$1)))) ORDER BY scope, item_type, name, id`, pid)
 	if err != nil {
 		return nil, err
 	}
@@ -266,12 +271,18 @@ func (s *PostgresStore) CreateProduct(ctx context.Context, pid string, in Produc
 }
 
 func (s *PostgresStore) UpdateProduct(ctx context.Context, pid, id string, in ProductInput) (Product, error) {
-	in.Scope, in.SharedScope = "project", "project"
 	in, err := prepareProduct(in)
 	if err != nil {
 		return Product{}, err
 	}
-	p, err := scanProduct(s.pool.QueryRow(ctx, `UPDATE ledger_products SET name=$1, item_type=$2, unit=$3, currency=$4, opening_stock=$5, current_stock=$6 WHERE id=$7 AND project_id=$8 RETURNING `+productCols, in.Name, in.ItemType, in.Unit, in.Currency, in.OpeningStock, in.CurrentStock, id, pid))
+	projectID := any(pid)
+	if in.Scope == "shared" {
+		projectID = nil
+		if in.SharedScope == "" {
+			in.SharedScope = "all"
+		}
+	}
+	p, err := scanProduct(s.pool.QueryRow(ctx, `UPDATE ledger_products SET scope=$1, shared_scope=$2, project_id=$3, name=$4, item_type=$5, unit=$6, currency=$7, opening_stock=$8, current_stock=$9, is_active=$10 WHERE id=$11 AND (project_id=$12 OR scope='shared') RETURNING `+productCols, in.Scope, in.SharedScope, projectID, in.Name, in.ItemType, in.Unit, in.Currency, in.OpeningStock, in.CurrentStock, in.IsActive, id, pid))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Product{}, ErrProductNotFound
 	}

@@ -58,7 +58,7 @@ export function ExportOperationsWorkspace({ code }: { code: string }) {
   const assetAccounts = useMemo(() => accounts.filter((item) => item.accountType === "asset"), [accounts]);
   const payableAccounts = useMemo(() => accounts.filter((item) => ["asset", "liability"].includes(item.accountType)), [accounts]);
   const revenueAccounts = useMemo(() => accounts.filter((item) => item.accountType === "revenue"), [accounts]);
-  const transactionProducts = useMemo(() => products.filter((item) => item.itemType === "resale" && (item.scope === "project" || (item.scope === "shared" && ["all", "export"].includes(item.sharedScope)))), [products]);
+  const transactionProducts = useMemo(() => products.filter((item) => item.isActive && item.itemType === "resale" && (item.scope === "project" || (item.scope === "shared" && ["all", "export"].includes(item.sharedScope)))), [products]);
   const projectProducts = useMemo(() => transactionProducts.filter((item) => item.scope === "project"), [transactionProducts]);
   const sharedProducts = useMemo(() => transactionProducts.filter((item) => item.scope === "shared" && ["all", "export"].includes(item.sharedScope)), [transactionProducts]);
 

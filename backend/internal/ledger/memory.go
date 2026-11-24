@@ -57,7 +57,6 @@ func (s *MemoryStore) CreateAccount(_ context.Context, projectID string, in Acco
 }
 
 func (s *MemoryStore) UpdateAccount(_ context.Context, projectID, id string, in AccountInput) (Account, error) {
-	in.Scope, in.SharedScope = "project", "project"
 	if !validAccount(in) {
 		return Account{}, ErrInvalidInput
 	}
@@ -69,7 +68,11 @@ func (s *MemoryStore) UpdateAccount(_ context.Context, projectID, id string, in 
 	for i := range s.accounts {
 		if s.accounts[i].ID == id && (s.accounts[i].ProjectID == projectID || s.accounts[i].Scope == "shared") {
 			a := &s.accounts[i]
-			a.Name, a.AccountNumber, a.BankName, a.Currency, a.AccountType, a.OpeningBalance = in.Name, in.AccountNumber, in.BankName, in.Currency, in.AccountType, in.OpeningBalance
+			a.Name, a.AccountNumber, a.BankName, a.Currency, a.AccountType, a.OpeningBalance, a.IsActive = in.Name, in.AccountNumber, in.BankName, in.Currency, in.AccountType, in.OpeningBalance, in.IsActive
+			a.Scope, a.SharedScope, a.ProjectID = in.Scope, in.SharedScope, projectID
+			if in.Scope == "shared" {
+				a.ProjectID = ""
+			}
 			a.CurrentBalance = in.OpeningBalance
 			return *a, nil
 		}
@@ -93,7 +96,7 @@ func (s *MemoryStore) ListProducts(_ context.Context, projectID string) ([]Produ
 	defer s.mu.RUnlock()
 	out := []Product{}
 	for _, p := range s.products {
-		if (p.ProjectID == projectID || (p.Scope == "shared" && p.SharedScope == "all")) && p.IsActive {
+		if p.ProjectID == projectID || (p.Scope == "shared" && p.SharedScope == "all") {
 			out = append(out, p)
 		}
 	}
@@ -119,7 +122,6 @@ func (s *MemoryStore) CreateProduct(_ context.Context, projectID string, in Prod
 }
 
 func (s *MemoryStore) UpdateProduct(_ context.Context, projectID, id string, in ProductInput) (Product, error) {
-	in.Scope, in.SharedScope = "project", "project"
 	var err error
 	if in, err = prepareProduct(in); err != nil {
 		return Product{}, err
@@ -127,8 +129,12 @@ func (s *MemoryStore) UpdateProduct(_ context.Context, projectID, id string, in 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i := range s.products {
-		if s.products[i].ID == id && s.products[i].ProjectID == projectID {
-			s.products[i].Name, s.products[i].ItemType, s.products[i].Unit, s.products[i].Currency = in.Name, in.ItemType, in.Unit, in.Currency
+		if s.products[i].ID == id && (s.products[i].ProjectID == projectID || s.products[i].Scope == "shared") {
+			s.products[i].Name, s.products[i].ItemType, s.products[i].Unit, s.products[i].Currency, s.products[i].IsActive = in.Name, in.ItemType, in.Unit, in.Currency, in.IsActive
+			s.products[i].Scope, s.products[i].SharedScope, s.products[i].ProjectID = in.Scope, in.SharedScope, projectID
+			if in.Scope == "shared" {
+				s.products[i].ProjectID = ""
+			}
 			s.products[i].OpeningStock, s.products[i].CurrentStock = in.OpeningStock, in.CurrentStock
 			return s.products[i], nil
 		}

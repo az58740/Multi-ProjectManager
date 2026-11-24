@@ -49,7 +49,7 @@ export function PersonalBankAccountsWorkspace({ code }: { code: string }) {
     event.preventDefault();
     if (busy) return;
     setBusy(true); setMessage("");
-    const body = { ...draft, scope: "project", sharedScope: "project", accountType: "asset" };
+    const body = { ...draft, scope: "project", sharedScope: "project", accountType: "asset", isActive: true };
     try {
       const url = editing ? `${path}/accounts/${encodeURIComponent(editing.id)}` : `${path}/accounts`;
       const response = await fetchWithTimeout(url, { method: editing ? "PUT" : "POST", headers: jsonHeaders(), body: JSON.stringify(body) });
