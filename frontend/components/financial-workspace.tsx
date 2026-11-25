@@ -118,25 +118,15 @@ export function FinancialWorkspace({ projects, tab, onBack }: { projects: Projec
     });
   }, [code, refresh]);
 
-  return <section className="mt-4 space-y-5" aria-labelledby="financial-title">
-    <div className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-br from-forest via-forest to-[#245747] p-5 text-white shadow-xl shadow-forest/10 sm:p-7">
-      <div aria-hidden="true" className="pointer-events-none absolute -end-10 -top-24 size-64 rounded-full border-[36px] border-white/[0.045]" />
-      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-light text-forest shadow-lg shadow-black/10"><Icon className="size-5" aria-hidden="true" /></span>
-          <div className="min-w-0">
-            <p className="m-0 text-xs font-bold text-amber-light">{fa ? "مرکز کنترل مالی" : "FINANCIAL WORKSPACE"}</p>
-            <h1 id="financial-title" className="mb-0 mt-1 text-xl font-black leading-tight sm:text-3xl">{fa ? (active?.fa ?? "مدیریت مالی") : (active?.en ?? "Financial management")}</h1>
-            <p className="mb-0 mt-2 max-w-2xl text-xs leading-6 text-white/75 sm:text-sm sm:leading-7">{fa ? "وضعیت حساب‌ها و عملیات مالی پروژه‌ها را از یک نمای یکپارچه مدیریت کنید." : "Manage project accounts and financial operations from one unified view."}</p>
-          </div>
-        </div>
-        <button type="button" onClick={onBack} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-full border border-white/20 bg-white/10 px-4 text-xs font-extrabold text-white transition hover:bg-white/20 sm:text-sm"><ChevronRight className={`size-4 ${!fa ? "rotate-180" : ""}`} aria-hidden="true" />{fa ? "بازگشت به منوی اصلی" : "Back to main menu"}</button>
-      </div>
-      <div className="relative mt-5 border-t border-white/15 pt-4 sm:mt-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
-        <div className="mb-2 text-xs font-bold text-white/75 sm:mb-0">{fa ? "پروژهٔ مالی" : "Financial project"}</div>
-        <label className="block sm:w-full sm:max-w-md">
+  return <section className="mt-3 space-y-4" aria-labelledby="financial-title">
+    <button type="button" onClick={onBack} aria-label={fa ? "بازگشت به منوی اصلی" : "Back to main menu"} className="inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-bold text-muted transition hover:bg-amber-100 hover:text-amber-950"><ChevronRight className={`size-3.5 ${!fa ? "rotate-180" : ""}`} aria-hidden="true" />{fa ? "بازگشت به منوی اصلی" : "Back to main menu"}</button>
+    <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-3 py-2.5 text-amber-950 shadow-sm sm:px-4">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="grid size-8 shrink-0 place-items-center rounded-xl bg-amber-100 text-amber-900"><Icon className="size-4" aria-hidden="true" /></span>
+        <h1 id="financial-title" className="m-0 min-w-0 text-sm font-black leading-6 tracking-normal">{fa ? (active?.fa ?? "مدیریت مالی") : (active?.en ?? "Financial management")}</h1>
+        <label className="ms-auto block min-w-0 w-36 sm:w-56">
           <span className="sr-only">{fa ? "انتخاب پروژهٔ مالی" : "Select financial project"}</span>
-          <select value={code} onChange={(event) => { setCode(event.target.value); setAccounts([]); }} className="min-h-11 w-full rounded-xl border border-white/15 bg-white/10 px-3 text-sm font-bold text-white outline-none transition focus:border-amber-light/70 focus:ring-4 focus:ring-white/10 [&>option]:text-ink">
+          <select value={code} onChange={(event) => { setCode(event.target.value); setAccounts([]); }} className="min-h-9 w-full rounded-lg border border-amber-200 bg-white/80 px-2 text-xs font-bold text-amber-950 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-200 [&>option]:text-ink">
             <option value="" disabled>{fa ? "انتخاب پروژه" : "Choose a project"}</option>
             {projects.map((project) => <option key={project.id} value={project.code}>{project.name}</option>)}
           </select>
