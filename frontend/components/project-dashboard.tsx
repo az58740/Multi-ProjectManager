@@ -270,13 +270,13 @@ export function ProjectDashboard() {
   const modalTitle = modalMode === "create" ? t.dialogTitle : modalMode === "edit" ? t.editProjectTitle : t.projectDetails;
 
   return (
-    <main className="min-h-screen bg-cream pb-24 lg:pb-0">
-      <header className="border-b border-line bg-paper">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#edf3ea_0%,_#f7f7f1_40%,_#f7f7f1_100%)] pb-24 lg:pb-0">
+      <header className="sticky top-0 z-20 border-b border-line/80 bg-paper/90 shadow-sm shadow-forest/[0.03] backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
           <Link href="/" className="inline-flex items-center gap-3"><BrandMark /></Link>
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageToggle />
-            <button type="button" onClick={signOut} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-sm font-semibold text-muted transition hover:bg-cream hover:text-forest">
+            <button type="button" onClick={signOut} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-semibold text-muted transition hover:border-sage-dark hover:bg-sage/60 hover:text-forest">
               <LogOut className="size-4" aria-hidden="true" /><span className="hidden sm:inline">{t.logout}</span>
             </button>
           </div>
@@ -295,7 +295,7 @@ export function ProjectDashboard() {
 
       <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-8 lg:px-8">
         <aside className="hidden lg:block">
-          <div className="sticky top-7 rounded-[26px] border border-line bg-paper p-4">
+          <div className="sticky top-24 rounded-[26px] border border-white/80 bg-white/85 p-4 shadow-xl shadow-forest/[0.04] backdrop-blur">
             <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">{t.allProjects}</p>
             <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
             <button type="button" onClick={() => setSection("accounts")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
@@ -320,21 +320,31 @@ export function ProjectDashboard() {
               <button type="button" onClick={() => setNotice("")} className="ms-auto rounded-full p-1 hover:bg-white/70" aria-label={t.close}><X className="size-4" aria-hidden="true" /></button>
             </div>
           )}
-          {section === "overview" && <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="m-0 truncate text-base font-black leading-tight tracking-tight text-forest sm:text-2xl">{t.dashboardKicker}</h1>
-              <p className="mb-0 mt-1 hidden text-sm leading-7 text-muted sm:block">{t.dashboardSubtitle}</p>
+          {section === "overview" && <div className="relative isolate overflow-hidden rounded-[28px] bg-forest px-5 py-6 text-white shadow-xl shadow-forest/10 sm:px-7 sm:py-8">
+            <div aria-hidden="true" className="pointer-events-none absolute -end-10 -top-20 size-64 rounded-full border-[36px] border-white/[0.045]" />
+            <div aria-hidden="true" className="pointer-events-none absolute -end-2 -bottom-28 size-48 rounded-full border-[28px] border-amber-light/[0.08]" />
+            <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+              <div className="min-w-0">
+                <p className="mb-2 text-xs font-bold tracking-wide text-amber-light">{isFa ? "نمای کلی فعالیت‌ها" : "WORKSPACE OVERVIEW"}</p>
+                <h1 className="m-0 truncate text-xl font-black leading-tight tracking-tight sm:text-3xl">{t.dashboardKicker}</h1>
+                <p className="mb-0 mt-2 max-w-2xl text-xs leading-6 text-white/75 sm:text-sm sm:leading-7">{t.dashboardSubtitle}</p>
+              </div>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {isAdmin && <Link href="/dashboard/users" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 text-sm font-extrabold text-white transition hover:bg-white/20"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
+                <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-amber-light px-4 text-xs font-extrabold text-forest shadow-md shadow-black/10 transition hover:-translate-y-0.5 hover:bg-amber-bright sm:px-5 sm:text-sm">
+                  <CirclePlus className="size-4" aria-hidden="true" />{isFa ? "پروژه جدید" : "New project"}
+                </button>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {isAdmin && <Link href="/dashboard/users" className="hidden min-h-11 items-center justify-center gap-2 rounded-full border border-sage-dark bg-paper px-4 text-sm font-extrabold text-forest transition hover:bg-sage sm:inline-flex"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
-              <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-forest px-4 text-xs font-extrabold text-white shadow-md shadow-forest/10 transition hover:-translate-y-0.5 hover:bg-forest-light sm:px-5 sm:text-sm">
-                <CirclePlus className="size-4" aria-hidden="true" />{isFa ? "پروژه" : "Project"}
-              </button>
+            <div className="relative mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/15 pt-4 text-xs font-semibold text-white/80 sm:mt-6 sm:gap-x-8">
+              <span>{t.summaryTotal}: <strong className="ms-1 text-base font-black text-white">{counts.total.toLocaleString(isFa ? "fa-IR" : "en-US")}</strong></span>
+              <span>{t.summaryActive}: <strong className="ms-1 text-base font-black text-white">{counts.active.toLocaleString(isFa ? "fa-IR" : "en-US")}</strong></span>
+              <span>{t.summaryPlanning}: <strong className="ms-1 text-base font-black text-white">{counts.planning.toLocaleString(isFa ? "fa-IR" : "en-US")}</strong></span>
             </div>
           </div>}
 
           {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onTabChange={setFinancialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
+          <div className="mt-6 grid grid-cols-2 gap-3 rounded-[24px] border border-white/80 bg-white/65 p-3 shadow-sm shadow-forest/[0.03] sm:grid-cols-[minmax(0,1fr)_190px_190px] sm:p-4">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
               <label htmlFor="project-search" className="sr-only">{t.projectSearch}</label>
@@ -367,12 +377,12 @@ export function ProjectDashboard() {
               {projects.length === 0 && <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); }} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-forest underline decoration-sage-dark underline-offset-4"><Plus className="size-4" aria-hidden="true" />{t.createFirstProject}</button>}
             </div>
           ) : (
-            <div id="projects-list" className="mt-5 scroll-mt-20 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div id="projects-list" className="mt-5 scroll-mt-20 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {filteredProjects.map((project) => {
                 const validType: ProjectType = isProjectType(project.type) ? project.type : "other";
                 const typeStyle = projectTypeStyles[validType];
                 return (
-                  <article key={project.id} className="group overflow-hidden rounded-[22px] border border-line bg-paper transition duration-300 hover:-translate-y-0.5 hover:border-sage-dark hover:shadow-lg hover:shadow-forest/5">
+                  <article key={project.id} className="group overflow-hidden rounded-[24px] border border-line/80 bg-white shadow-sm shadow-forest/[0.035] transition duration-300 hover:-translate-y-1 hover:border-sage-dark hover:shadow-xl hover:shadow-forest/[0.08]">
                     <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : validType === "personal-account" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/personal`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.name}`} className="block w-full text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark">
                       <div className={`${typeStyle.header} ${typeStyle.ink} flex min-h-[62px] items-center justify-between gap-3 px-4 py-3`}>
                         <div className="flex min-w-0 items-center gap-3">
