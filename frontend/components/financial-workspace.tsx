@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import useSWR from "swr";
 import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Banknote, ChevronRight, Landmark, LoaderCircle, ReceiptText, WalletCards } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { LedgerWorkspace } from "@/components/ledger-workspace";
 import { jsonHeaders } from "@/lib/accounts";
 import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/http";
+import { isCounterparty, isListOf } from "@/lib/export-records";
 import { isLedgerAccountList, type LedgerAccount } from "@/lib/ledger";
 import type { Project } from "@/lib/projects";
 
@@ -57,6 +59,87 @@ function DetailedTransactionForm({ code, kind, accounts, onSaved }: { code: stri
   </form>;
 }
 
+
+function ReceiveFxForm({ code, accounts, onSaved }: { code: string; accounts: LedgerAccount[]; onSaved: () => void }) {
+  const { locale } = useLocale();
+  const fa = locale === "fa";
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), currency: "USD", intermediaryId: "", amount: "", destinationKind: "exchange" as "exchange" | "bank", destinationAccount: "", contraAccount: "", reference: "" });
+  const activeAccounts = accounts.filter((account) => account.isActive);
+  const { data: intermediaries = [], error: intermediaryError, isLoading: intermediariesLoading } = useSWR(
+    code ? `/api/v1/projects/${encodeURIComponent(code)}/export/counterparties` : null,
+    async (path: string) => {
+      const { response, payload } = await fetchJsonWithTimeout(path, { cache: "no-store" });
+      if (!response.ok || !isListOf(payload, isCounterparty)) throw new Error("Unable to load counterparties");
+      return payload.items.filter((counterparty) => counterparty.roles.includes("intermediary"));
+    },
+  );
+  const destinations = activeAccounts.filter((account) => account.accountType === "asset" && account.currency === form.currency);
+  const contraAccounts = activeAccounts.filter((account) => account.id !== form.destinationAccount && account.currency === form.currency && ["asset", "liability", "equity", "revenue"].includes(account.accountType));
+  const selectedIntermediary = intermediaries.find((item) => item.id === form.intermediaryId);
+  const selectedDestination = destinations.find((item) => item.id === form.destinationAccount);
+  function set(key: keyof typeof form, value: string) { setForm((current) => ({ ...current, [key]: value })); }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError(""); setMessage("");
+    const validAmount = decimal.test(form.amount) && Number(form.amount) > 0;
+    if (!form.date || !validAmount || !selectedIntermediary || !selectedDestination || !form.contraAccount || form.contraAccount === form.destinationAccount) {
+      setError(fa ? "ارز، واسطه، مبلغ، حساب مقصد و حساب مقابل را کامل و معتبر انتخاب کنید." : "Choose a currency, intermediary, valid amount, destination account and offset account.");
+      return;
+    }
+    setBusy(true);
+    const destinationLabel = form.destinationKind === "exchange" ? (fa ? "حساب صرافی" : "Exchange account") : (fa ? "حساب ارزی بانکی" : "Foreign-currency bank account");
+    const details = [
+      `${fa ? "واسطه" : "Intermediary"}: ${selectedIntermediary.name}`,
+      `${fa ? "مقصد" : "Destination"}: ${destinationLabel} — ${selectedDestination.name}`,
+      form.reference && `${fa ? "مرجع" : "Reference"}: ${form.reference}`,
+    ].filter(Boolean).join(" | ");
+    const idempotencyKey = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `fx-receipt-${Date.now()}`;
+    try {
+      const response = await fetchWithTimeout(`/api/v1/projects/${encodeURIComponent(code)}/ledger/entries`, {
+        method: "POST",
+        headers: jsonHeaders(),
+        body: JSON.stringify({
+          entryDate: form.date,
+          description: `${fa ? "دریافت ارز" : "Foreign currency receipt"} - ${details}`,
+          idempotencyKey,
+          lines: [
+            { accountId: form.destinationAccount, currency: form.currency, debitAmount: form.amount, creditAmount: "0", functionalDebit: form.amount, functionalCredit: "0", exchangeRate: "1", memo: fa ? "واریز ارز به حساب مقصد" : "Foreign currency received into destination" },
+            { accountId: form.contraAccount, currency: form.currency, debitAmount: "0", creditAmount: form.amount, functionalDebit: "0", functionalCredit: form.amount, exchangeRate: "1", memo: fa ? `بستانکار دریافت از ${selectedIntermediary.name}` : `Offset for receipt from ${selectedIntermediary.name}` },
+          ],
+        }),
+      }, 12_000);
+      if (!response.ok) throw new Error("save");
+      setMessage(fa ? "دریافت ارز با موفقیت ثبت شد." : "Foreign currency receipt saved successfully.");
+      setForm((current) => ({ ...current, amount: "", reference: "" }));
+      onSaved();
+    } catch {
+      setError(fa ? "ثبت دریافت ارز انجام نشد؛ حساب‌ها و تراز سند را بررسی کنید." : "Could not save the receipt; check the accounts and journal balance.");
+    } finally { setBusy(false); }
+  }
+
+  return <form onSubmit={(event) => void submit(event)} className="rounded-[22px] border border-line bg-paper p-4 sm:p-5" noValidate>
+    <div className="flex items-center gap-2 border-b border-line pb-3"><Banknote className="size-4 text-amber" /><h2 className="m-0 text-sm font-black text-forest">{fa ? "جزئیات دریافت ارز" : "Foreign currency receipt details"}</h2></div>
+    {error && <p role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-800">{error}</p>}
+    {message && <p role="status" className="mt-3 rounded-xl border border-sage-dark bg-sage px-3 py-2 text-xs font-bold text-forest">{message}</p>}
+    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <label className={labelClass}>{fa ? "ارز دریافتی" : "Currency received"}<select required value={form.currency} onChange={(event) => setForm((current) => ({ ...current, currency: event.target.value, destinationAccount: "", contraAccount: "" }))} className={inputClass} dir="ltr">{currencies.filter((currency) => currency !== "IRR").map((currency) => <option key={currency} value={currency}>{currency}</option>)}</select></label>
+      <label className={labelClass}>{fa ? "دریافت از واسطه" : "Received from intermediary"}<select required value={form.intermediaryId} onChange={(event) => set("intermediaryId", event.target.value)} className={inputClass} disabled={intermediariesLoading || Boolean(intermediaryError)}><option value="">{intermediariesLoading ? (fa ? "در حال دریافت فهرست…" : "Loading counterparties…") : (fa ? "انتخاب واسطه" : "Select an intermediary")}</option>{intermediaries.map((counterparty) => <option key={counterparty.id} value={counterparty.id}>{counterparty.name}</option>)}</select></label>
+      {intermediaryError && <p role="alert" className="m-0 text-xs leading-5 text-red-800">{fa ? "فهرست واسطه‌ها دریافت نشد." : "Could not load intermediaries."}</p>}
+      {!intermediariesLoading && !intermediaryError && !intermediaries.length && <p className="m-0 rounded-xl bg-amber-soft px-3 py-2 text-[10px] leading-5 text-[#735722]">{fa ? "برای این پروژه واسطه‌ای ثبت نشده است؛ ابتدا یک طرف‌حساب با نقش «واسطه» اضافه کنید." : "No intermediaries found. Add a counterparty with the Intermediary role first."}</p>}
+      <label className={labelClass}>{fa ? "مبلغ ارز" : "Amount received"}<input required inputMode="decimal" value={form.amount} onChange={(event) => set("amount", event.target.value)} className={inputClass} dir="ltr" placeholder="0.00" /></label>
+      <label className={labelClass}>{fa ? "ارز به کجا واریز شده؟" : "Where was the currency received?"}<select value={form.destinationKind} onChange={(event) => set("destinationKind", event.target.value)} className={inputClass}><option value="exchange">{fa ? "حساب صرافی" : "Exchange account"}</option><option value="bank">{fa ? "حساب ارزی بانکی" : "Foreign-currency bank account"}</option></select></label>
+      <label className={labelClass}>{fa ? "حساب مقصد" : "Destination account"}<select required value={form.destinationAccount} onChange={(event) => setForm((current) => ({ ...current, destinationAccount: event.target.value, contraAccount: current.contraAccount === event.target.value ? "" : current.contraAccount }))} className={inputClass}><option value="">{fa ? "انتخاب حساب" : "Select an account"}</option>{destinations.map((account) => <option key={account.id} value={account.id}>{account.code} — {account.name}{account.bankName ? ` (${account.bankName})` : ""}</option>)}</select></label>
+      <label className={labelClass}>{fa ? "حساب بستانکار / مقابل" : "Offset / credit account"}<select required value={form.contraAccount} onChange={(event) => set("contraAccount", event.target.value)} className={inputClass}><option value="">{fa ? "انتخاب حساب مقابل" : "Select offset account"}</option>{contraAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} — {account.name}</option>)}</select></label>
+      <label className={labelClass}>{fa ? "تاریخ دریافت" : "Receipt date"}<input type="date" required value={form.date} onChange={(event) => set("date", event.target.value)} className={inputClass} dir="ltr" /></label>
+      <label className={labelClass}>{fa ? "شماره مرجع (اختیاری)" : "Reference (optional)"}<input value={form.reference} onChange={(event) => set("reference", event.target.value)} maxLength={100} className={inputClass} /></label>
+    </div>
+    {!destinations.length && <p className="mb-0 mt-3 rounded-xl bg-amber-soft px-3 py-2 text-[10px] leading-5 text-[#735722]">{fa ? `حساب فعال ${form.currency} برای دریافت ارز پیدا نشد.` : `No active ${form.currency} asset account is available.`}</p>}
+    <button disabled={busy || !destinations.length || !contraAccounts.length || intermediariesLoading || Boolean(intermediaryError) || !intermediaries.length} className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-forest px-4 text-xs font-extrabold text-white disabled:opacity-60">{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت دریافت ارز" : "Save currency receipt"}</button>
+  </form>;
+}
 
 function FxSaleForm({ code, accounts, onSaved }: { code: string; accounts: LedgerAccount[]; onSaved: () => void }) {
   const { locale } = useLocale();
@@ -148,6 +231,6 @@ export function FinancialWorkspace({ projects, tab, onBack }: { projects: Projec
         <p className="mb-0 mt-2 max-w-3xl text-xs leading-6 text-muted sm:text-sm">{fa ? "برای ثبت دریافت و پرداخت، مدیریت ارز یا بررسی اسناد مالی، یکی از گزینه‌های منوی مالی را انتخاب کنید. اطلاعات حساب‌ها با پروژهٔ انتخاب‌شده هماهنگ می‌شود." : "Choose a finance option from the navigation to record receipts and payments, manage currency, or review financial entries. Account data follows the selected project."}</p>
         {!activeAccounts.length && code && <p className="mb-0 mt-4 rounded-xl border border-amber-200 bg-amber-soft/70 px-4 py-3 text-xs font-bold leading-6 text-[#735722]">{fa ? "برای این پروژه هنوز حساب فعالی ثبت نشده است. ابتدا حساب‌های مالی پروژه را بررسی کنید." : "No active accounts are registered for this project yet. Review the project financial accounts first."}</p>}
       </div>
-    </div> : code && (tab === "receive" || tab === "pay") ? <><DetailedTransactionForm key={`${code}-${tab}`} code={code} kind={tab} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code && tab === "sell-fx" ? <><FxSaleForm key={`${code}-sell-fx`} code={code} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code ? <LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /> : <p className="rounded-2xl border border-dashed border-sage-dark bg-white p-6 text-center text-xs font-bold text-muted">{fa ? "برای شروع یک پروژه را انتخاب کنید." : "Choose a project to begin."}</p>}
+    </div> : code && (tab === "receive" || tab === "pay") ? <><DetailedTransactionForm key={`${code}-${tab}`} code={code} kind={tab} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code && tab === "receive-fx" ? <><ReceiveFxForm key={`${code}-receive-fx`} code={code} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code && tab === "sell-fx" ? <><FxSaleForm key={`${code}-sell-fx`} code={code} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code ? <LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /> : <p className="rounded-2xl border border-dashed border-sage-dark bg-white p-6 text-center text-xs font-bold text-muted">{fa ? "برای شروع یک پروژه را انتخاب کنید." : "Choose a project to begin."}</p>}
   </section>;
 }
