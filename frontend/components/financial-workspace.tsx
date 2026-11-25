@@ -1,14 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Banknote, ChevronRight } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { LedgerWorkspace } from "@/components/ledger-workspace";
+import type { Project } from "@/lib/projects";
 
 type FinancialTab = "receive" | "pay" | "receive-fx" | "sell-fx";
 
-export function FinancialWorkspace({ code, tab, onTabChange, onBack }: { code: string; tab: FinancialTab; onTabChange: (tab: FinancialTab) => void; onBack: () => void }) {
+export function FinancialWorkspace({ projects, tab, onTabChange, onBack }: { projects: Project[]; tab: FinancialTab; onTabChange: (tab: FinancialTab) => void; onBack: () => void }) {
   const { locale } = useLocale();
   const fa = locale === "fa";
+  const [code, setCode] = useState(projects[0]?.code ?? "");
   const items = [
     { key: "receive" as const, icon: ArrowDownToLine, fa: "دریافت", en: "Receipts" },
     { key: "pay" as const, icon: ArrowUpFromLine, fa: "پرداخت", en: "Payments" },
@@ -27,7 +30,8 @@ export function FinancialWorkspace({ code, tab, onTabChange, onBack }: { code: s
         {items.map(({ key, icon: ItemIcon, fa: faLabel, en }) => <button key={key} type="button" onClick={() => onTabChange(key)} aria-pressed={tab === key} className={`flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-extrabold leading-none sm:gap-1.5 sm:text-[10px] ${tab === key ? "bg-amber-200 text-amber-950" : "text-amber-950/70 hover:bg-amber-100"}`}><ItemIcon className="size-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{fa ? faLabel : en}</span></button>)}
       </nav>
       <p className="m-0 text-[11px] leading-5 text-amber-950/70">{fa ? "حساب‌های پروژه را انتخاب کنید و سند دریافت، پرداخت یا گردش ارز را در دفترکل دوطرفه ثبت کنید." : "Choose project accounts and record receipts, payments or foreign-currency activity in the double-entry ledger."}</p>
+      <label className="block text-[10px] font-extrabold text-amber-950">{fa ? "پروژهٔ مالی" : "Financial project"}<select value={code} onChange={(event) => setCode(event.target.value)} className="mt-1 min-h-9 w-full rounded-xl border border-amber-200 bg-white px-2 text-xs font-bold text-ink outline-none focus:ring-2 focus:ring-amber-200"><option value="" disabled>{fa ? "انتخاب پروژه" : "Choose a project"}</option>{projects.map((project) => <option key={project.id} value={project.code}>{project.name}</option>)}</select></label>
     </div>
-    <LedgerWorkspace code={code} hideAccountManagement />
+    {code ? <LedgerWorkspace key={code} code={code} hideAccountManagement /> : <p className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-6 text-center text-xs font-bold text-amber-950">{fa ? "برای شروع یک پروژه را انتخاب کنید." : "Choose a project to begin."}</p>}
   </section>;
 }

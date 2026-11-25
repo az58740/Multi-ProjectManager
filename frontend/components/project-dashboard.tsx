@@ -333,7 +333,7 @@ export function ProjectDashboard() {
             </div>
           </div>}
 
-          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace code={projects[0]?.code ?? ""} tab={financialTab} onTabChange={setFinancialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
+          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onTabChange={setFinancialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
