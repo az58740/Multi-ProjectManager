@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Boxes, Building2, Check, CirclePlus, ClipboardList, Globe2, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, Warehouse, X } from "lucide-react";
+import { Boxes, Building2, Check, CirclePlus, ClipboardList, Globe2, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, WalletCards, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -12,13 +12,15 @@ import { ProjectForm } from "@/components/project-form";
 import { ProjectModal } from "@/components/project-modal";
 import { ProjectResourcesWorkspace } from "@/components/project-resources-workspace";
 import { AccountManagementWorkspace } from "@/components/account-management-workspace";
+import { FinancialWorkspace } from "@/components/financial-workspace";
 import { fetchWithTimeout } from "@/lib/http";
 import { accountMessages } from "@/lib/account-i18n";
 import { jsonHeaders, type Session } from "@/lib/accounts";
 import { isProjectListPayload, isProjectRecord, isProjectStatus, isProjectType, PROJECT_STATUSES, PROJECT_TYPES, type Project, type ProjectStatus, type ProjectType, type ProjectWritePayload } from "@/lib/projects";
 
 type ModalMode = "create" | "edit" | "details" | null;
-type DashboardSection = "overview" | "accounts" | "catalog";
+type DashboardSection = "overview" | "accounts" | "catalog" | "financial";
+type FinancialTab = "receive" | "pay" | "receive-fx" | "sell-fx";
 
 function typeLabel(type: ProjectType, t: ReturnType<typeof useLocale>["t"]) {
   const labels: Record<ProjectType, string> = {
@@ -87,6 +89,7 @@ export function ProjectDashboard() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [section, setSection] = useState<DashboardSection>("overview");
+  const [financialTab, setFinancialTab] = useState<FinancialTab>("receive");
 
   useEffect(() => {
     let active = true;
@@ -280,12 +283,13 @@ export function ProjectDashboard() {
         </div>
       </header>
 
-      <nav aria-label={isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation"} className="fixed inset-x-3 bottom-3 z-30 rounded-[24px] border border-line bg-paper/95 p-2 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
-        <div className="mx-auto grid max-w-[1440px] grid-cols-4 gap-1">
-          <button type="button" onClick={() => setSection("overview")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-4" />{t.activeProjects}</button>
-          <button type="button" onClick={() => setSection("accounts")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-4" />{isFa ? "حساب‌ها" : "Accounts"}</button>
-          <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-4" />{isFa ? "کالاها" : "Catalog"}</button>
-          <Link href="/dashboard/users" className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10px] font-extrabold text-muted"><Users className="size-4" aria-hidden="true" />{m.users}</Link>
+      <nav aria-label={isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation"} className="fixed inset-x-2 bottom-2 z-30 rounded-[20px] border border-line bg-paper/95 p-1.5 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-5 gap-1">
+          <button type="button" onClick={() => setSection("overview")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-3.5" />{isFa ? "پروژه‌ها" : "Projects"}</button>
+          <button type="button" onClick={() => setSection("accounts")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-3.5" />{isFa ? "حساب‌ها" : "Accounts"}</button>
+          <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-3.5" />{isFa ? "کالاها" : "Catalog"}</button>
+          <button type="button" onClick={() => { setSection("financial"); setFinancialTab("receive"); }} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "financial" ? "bg-amber-100 text-amber-950" : "text-muted"}`}><WalletCards className="size-3.5" />{isFa ? "مالی" : "Finance"}</button>
+          <Link href="/dashboard/users" className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><Users className="size-3.5" aria-hidden="true" />{m.users}</Link>
         </div>
       </nav>
 
@@ -296,6 +300,7 @@ export function ProjectDashboard() {
             <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
             <button type="button" onClick={() => setSection("accounts")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
             <button type="button" onClick={() => setSection("catalog")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Boxes className="size-4" aria-hidden="true" />{isFa ? "کالا و ملزومات" : "Products & supplies"}</button>
+            <button type="button" onClick={() => { setSection("financial"); setFinancialTab("receive"); }} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "financial" ? "bg-amber-100 text-amber-950" : "text-muted hover:bg-cream"}`}><WalletCards className="size-4" aria-hidden="true" />{isFa ? "مالی" : "Finance"}</button>
             {isAdmin && <Link href="/dashboard/users" className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
             <div className="mt-5 rounded-2xl bg-forest p-4 text-white">
               <div className="grid size-10 place-items-center rounded-[14px] bg-white/10 text-amber-light"><Globe2 className="size-5" aria-hidden="true" /></div>
@@ -328,7 +333,7 @@ export function ProjectDashboard() {
             </div>
           </div>}
 
-          {section !== "overview" ? (projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
+          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace code={projects[0]?.code ?? ""} tab={financialTab} onTabChange={setFinancialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-[minmax(0,1fr)_190px_190px]">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
