@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Banknote, ChevronRight, LoaderCircle, ReceiptText } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Banknote, ChevronRight, Landmark, LoaderCircle, ReceiptText, WalletCards } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { LedgerWorkspace } from "@/components/ledger-workspace";
 import { jsonHeaders } from "@/lib/accounts";
@@ -9,7 +9,7 @@ import { fetchJsonWithTimeout, fetchWithTimeout } from "@/lib/http";
 import { isLedgerAccountList, type LedgerAccount } from "@/lib/ledger";
 import type { Project } from "@/lib/projects";
 
-type FinancialTab = "receive" | "pay" | "receive-fx" | "sell-fx";
+type FinancialTab = "overview" | "receive" | "pay" | "receive-fx" | "sell-fx";
 type TransactionKind = "receive" | "pay";
 const currencies = ["IRR", "USD", "EUR", "AED", "TRY", "GBP", "CNY"];
 const inputClass = "mt-1.5 min-h-10 w-full rounded-xl border border-line bg-white px-3 text-xs font-medium text-ink outline-none transition focus:border-forest/40 focus:ring-4 focus:ring-sage/70";
@@ -99,15 +99,65 @@ function FxSaleForm({ code, accounts, onSaved }: { code: string; accounts: Ledge
   </form>;
 }
 
-export function FinancialWorkspace({ projects, tab, onTabChange, onBack }: { projects: Project[]; tab: FinancialTab; onTabChange: (tab: FinancialTab) => void; onBack: () => void }) {
+export function FinancialWorkspace({ projects, tab, onBack }: { projects: Project[]; tab: FinancialTab; onBack: () => void }) {
   const { locale } = useLocale();
   const fa = locale === "fa";
   const [code, setCode] = useState(projects[0]?.code ?? "");
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [refresh, setRefresh] = useState(0);
   const items = [{ key: "receive" as const, icon: ArrowDownToLine, fa: "دریافت", en: "Receipts" }, { key: "pay" as const, icon: ArrowUpFromLine, fa: "پرداخت", en: "Payments" }, { key: "receive-fx" as const, icon: Banknote, fa: "دریافت ارز", en: "Receive FX" }, { key: "sell-fx" as const, icon: ArrowLeftRight, fa: "فروش ارز", en: "Sell FX" }];
-  const active = items.find((item) => item.key === tab) ?? items[0];
-  const Icon = active.icon;
-  useEffect(() => { if (!code) return; void fetchJsonWithTimeout(`/api/v1/projects/${encodeURIComponent(code)}/ledger/accounts`, { cache: "no-store" }).then(({ response, payload }) => { if (response.ok && isLedgerAccountList(payload)) setAccounts(payload.items); }); }, [code, refresh]);
-  return <section className="mt-4" aria-labelledby="financial-title"><div className="flex flex-col gap-3 rounded-[22px] border border-amber/30 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-3 shadow-sm sm:p-5"><div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2.5"><span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-200 text-amber-950"><Icon className="size-4" /></span><div className="min-w-0"><p className="m-0 text-[9px] font-extrabold uppercase tracking-[0.12em] text-amber-950">{fa ? "مدیریت مالی" : "Financial management"}</p><h1 id="financial-title" className="mb-0 mt-0.5 truncate text-base font-black leading-tight text-amber-950 sm:text-xl">{fa ? active.fa : active.en}</h1></div></div><button type="button" onClick={onBack} className="inline-flex min-h-9 shrink-0 items-center gap-1 rounded-full border border-amber-300 bg-white/70 px-2.5 text-[10px] font-extrabold text-amber-950"><ChevronRight className={`size-3.5 ${!fa ? "rotate-180" : ""}`} />{fa ? "بازگشت به منوی اصلی" : "Back to main menu"}</button></div><label className="block text-[10px] font-extrabold text-amber-950">{fa ? "پروژهٔ مالی" : "Financial project"}<select value={code} onChange={(event) => { setCode(event.target.value); setAccounts([]); }} className="mt-1 min-h-9 w-full rounded-xl border border-amber-200 bg-white px-2 text-xs font-bold text-ink outline-none"><option value="" disabled>{fa ? "انتخاب پروژه" : "Choose a project"}</option>{projects.map((project) => <option key={project.id} value={project.code}>{project.name}</option>)}</select></label><nav className="grid grid-cols-4 gap-1 rounded-2xl border border-amber-200 bg-white/60 p-1" aria-label={fa ? "منوی عملیات مالی" : "Financial operations"}>{items.map(({ key, icon: ItemIcon, fa: faLabel, en }) => <button key={key} type="button" onClick={() => onTabChange(key)} className={`flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-extrabold sm:gap-1.5 sm:text-[10px] ${tab === key ? "bg-amber-200 text-amber-950" : "text-amber-950/70 hover:bg-amber-100"}`}><ItemIcon className="size-3.5" />{fa ? faLabel : en}</button>)}</nav><p className="m-0 text-[11px] leading-5 text-amber-950/70">{fa ? "جزئیات تراکنش را وارد کنید تا سند دوطرفه در دفترکل ثبت شود." : "Enter transaction details to create a double-entry journal record."}</p></div>{code && (tab === "receive" || tab === "pay") ? <><DetailedTransactionForm key={`${code}-${tab}`} code={code} kind={tab} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code && tab === "sell-fx" ? <><FxSaleForm key={`${code}-sell-fx`} code={code} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code ? <LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /> : <p className="mt-4 rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-6 text-center text-xs font-bold text-amber-950">{fa ? "برای شروع یک پروژه را انتخاب کنید." : "Choose a project to begin."}</p>}</section>;
+  const active = items.find((item) => item.key === tab);
+  const Icon = active?.icon ?? ReceiptText;
+  const activeAccounts = accounts.filter((account) => account.isActive);
+  const currencyCount = new Set(activeAccounts.map((account) => account.currency)).size;
+
+  useEffect(() => {
+    if (!code) return;
+    void fetchJsonWithTimeout(`/api/v1/projects/${encodeURIComponent(code)}/ledger/accounts`, { cache: "no-store" }).then(({ response, payload }) => {
+      if (response.ok && isLedgerAccountList(payload)) setAccounts(payload.items);
+    });
+  }, [code, refresh]);
+
+  return <section className="mt-4 space-y-5" aria-labelledby="financial-title">
+    <div className="relative isolate overflow-hidden rounded-[28px] bg-gradient-to-br from-forest via-forest to-[#245747] p-5 text-white shadow-xl shadow-forest/10 sm:p-7">
+      <div aria-hidden="true" className="pointer-events-none absolute -end-10 -top-24 size-64 rounded-full border-[36px] border-white/[0.045]" />
+      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-amber-light text-forest shadow-lg shadow-black/10"><Icon className="size-5" aria-hidden="true" /></span>
+          <div className="min-w-0">
+            <p className="m-0 text-xs font-bold text-amber-light">{fa ? "مرکز کنترل مالی" : "FINANCIAL WORKSPACE"}</p>
+            <h1 id="financial-title" className="mb-0 mt-1 text-xl font-black leading-tight sm:text-3xl">{fa ? (active?.fa ?? "مدیریت مالی") : (active?.en ?? "Financial management")}</h1>
+            <p className="mb-0 mt-2 max-w-2xl text-xs leading-6 text-white/75 sm:text-sm sm:leading-7">{fa ? "وضعیت حساب‌ها و عملیات مالی پروژه‌ها را از یک نمای یکپارچه مدیریت کنید." : "Manage project accounts and financial operations from one unified view."}</p>
+          </div>
+        </div>
+        <button type="button" onClick={onBack} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 self-start rounded-full border border-white/20 bg-white/10 px-4 text-xs font-extrabold text-white transition hover:bg-white/20 sm:text-sm"><ChevronRight className={`size-4 ${!fa ? "rotate-180" : ""}`} aria-hidden="true" />{fa ? "بازگشت به منوی اصلی" : "Back to main menu"}</button>
+      </div>
+      <div className="relative mt-5 border-t border-white/15 pt-4 sm:mt-6 sm:flex sm:items-center sm:justify-between sm:gap-6">
+        <div className="mb-2 text-xs font-bold text-white/75 sm:mb-0">{fa ? "پروژهٔ مالی" : "Financial project"}</div>
+        <label className="block sm:w-full sm:max-w-md">
+          <span className="sr-only">{fa ? "انتخاب پروژهٔ مالی" : "Select financial project"}</span>
+          <select value={code} onChange={(event) => { setCode(event.target.value); setAccounts([]); }} className="min-h-11 w-full rounded-xl border border-white/15 bg-white/10 px-3 text-sm font-bold text-white outline-none transition focus:border-amber-light/70 focus:ring-4 focus:ring-white/10 [&>option]:text-ink">
+            <option value="" disabled>{fa ? "انتخاب پروژه" : "Choose a project"}</option>
+            {projects.map((project) => <option key={project.id} value={project.code}>{project.name}</option>)}
+          </select>
+        </label>
+      </div>
+    </div>
+
+    {tab === "overview" ? <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        {[
+          { label: fa ? "حساب‌های فعال" : "Active accounts", value: activeAccounts.length, icon: WalletCards, tone: "bg-sage text-forest" },
+          { label: fa ? "پروژه‌های در دسترس" : "Available projects", value: projects.length, icon: Landmark, tone: "bg-amber-soft text-amber" },
+          { label: fa ? "ارزهای ثبت‌شده" : "Currencies in use", value: currencyCount, icon: Banknote, tone: "bg-[#eaf0f7] text-[#365c83]" },
+        ].map(({ label, value, icon: MetricIcon, tone }) => <article key={label} className="flex min-h-28 items-center gap-4 rounded-[22px] border border-line/80 bg-white p-4 shadow-sm shadow-forest/[0.035] sm:p-5"><span className={`grid size-12 shrink-0 place-items-center rounded-2xl ${tone}`}><MetricIcon className="size-5" aria-hidden="true" /></span><div><p className="m-0 text-xs font-bold text-muted">{label}</p><p className="mb-0 mt-1 text-2xl font-black text-forest">{value.toLocaleString(fa ? "fa-IR" : "en-US")}</p></div></article>)}
+      </div>
+      <div className="rounded-[24px] border border-line/80 bg-white p-5 shadow-sm shadow-forest/[0.035] sm:p-6">
+        <p className="m-0 text-xs font-extrabold text-amber">{fa ? "نمای کلی" : "AT A GLANCE"}</p>
+        <h2 className="mb-0 mt-1 text-base font-black text-forest sm:text-lg">{fa ? "مدیریت مالی پروژه‌ها" : "Project financial management"}</h2>
+        <p className="mb-0 mt-2 max-w-3xl text-xs leading-6 text-muted sm:text-sm">{fa ? "برای ثبت دریافت و پرداخت، مدیریت ارز یا بررسی اسناد مالی، یکی از گزینه‌های منوی مالی را انتخاب کنید. اطلاعات حساب‌ها با پروژهٔ انتخاب‌شده هماهنگ می‌شود." : "Choose a finance option from the navigation to record receipts and payments, manage currency, or review financial entries. Account data follows the selected project."}</p>
+        {!activeAccounts.length && code && <p className="mb-0 mt-4 rounded-xl border border-amber-200 bg-amber-soft/70 px-4 py-3 text-xs font-bold leading-6 text-[#735722]">{fa ? "برای این پروژه هنوز حساب فعالی ثبت نشده است. ابتدا حساب‌های مالی پروژه را بررسی کنید." : "No active accounts are registered for this project yet. Review the project financial accounts first."}</p>}
+      </div>
+    </div> : code && (tab === "receive" || tab === "pay") ? <><DetailedTransactionForm key={`${code}-${tab}`} code={code} kind={tab} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code && tab === "sell-fx" ? <><FxSaleForm key={`${code}-sell-fx`} code={code} accounts={accounts} onSaved={() => setRefresh((value) => value + 1)} /><LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /></> : code ? <LedgerWorkspace key={`${code}-${refresh}`} code={code} hideAccountManagement /> : <p className="rounded-2xl border border-dashed border-sage-dark bg-white p-6 text-center text-xs font-bold text-muted">{fa ? "برای شروع یک پروژه را انتخاب کنید." : "Choose a project to begin."}</p>}
+  </section>;
 }

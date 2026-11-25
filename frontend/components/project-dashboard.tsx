@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Boxes, Building2, Check, CirclePlus, ClipboardList, Globe2, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, WalletCards, Warehouse, X } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Banknote, Boxes, Building2, Check, CirclePlus, ClipboardList, Globe2, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, WalletCards, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -20,7 +20,14 @@ import { isProjectListPayload, isProjectRecord, isProjectStatus, isProjectType, 
 
 type ModalMode = "create" | "edit" | "details" | null;
 type DashboardSection = "overview" | "accounts" | "catalog" | "financial";
-type FinancialTab = "receive" | "pay" | "receive-fx" | "sell-fx";
+type FinancialTab = "overview" | "receive" | "pay" | "receive-fx" | "sell-fx";
+
+const financialNavigation = [
+  { key: "receive" as const, icon: ArrowDownToLine, fa: "دریافت", en: "Receipts" },
+  { key: "pay" as const, icon: ArrowUpFromLine, fa: "پرداخت", en: "Payments" },
+  { key: "receive-fx" as const, icon: Banknote, fa: "دریافت ارز", en: "Receive FX" },
+  { key: "sell-fx" as const, icon: ArrowLeftRight, fa: "فروش ارز", en: "Sell FX" },
+];
 
 function typeLabel(type: ProjectType, t: ReturnType<typeof useLocale>["t"]) {
   const labels: Record<ProjectType, string> = {
@@ -89,7 +96,7 @@ export function ProjectDashboard() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [section, setSection] = useState<DashboardSection>("overview");
-  const [financialTab, setFinancialTab] = useState<FinancialTab>("receive");
+  const [financialTab, setFinancialTab] = useState<FinancialTab>("overview");
 
   useEffect(() => {
     let active = true;
@@ -283,25 +290,35 @@ export function ProjectDashboard() {
         </div>
       </header>
 
-      <nav aria-label={isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation"} className="fixed inset-x-2 bottom-2 z-30 rounded-[20px] border border-line bg-paper/95 p-1.5 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
+      <nav aria-label={section === "financial" ? (isFa ? "عملیات مالی" : "Financial operations") : (isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation")} className="fixed inset-x-2 bottom-2 z-30 rounded-[20px] border border-line bg-paper/95 p-1.5 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-[1440px] grid-cols-5 gap-1">
-          <button type="button" onClick={() => setSection("overview")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-3.5" />{isFa ? "پروژه‌ها" : "Projects"}</button>
-          <button type="button" onClick={() => setSection("accounts")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-3.5" />{isFa ? "حساب‌ها" : "Accounts"}</button>
-          <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-3.5" />{isFa ? "کالاها" : "Catalog"}</button>
-          <button type="button" onClick={() => { setSection("financial"); setFinancialTab("receive"); }} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "financial" ? "bg-amber-100 text-amber-950" : "text-muted"}`}><WalletCards className="size-3.5" />{isFa ? "مالی" : "Finance"}</button>
-          <Link href="/dashboard/users" className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><Users className="size-3.5" aria-hidden="true" />{m.users}</Link>
+          {section === "financial" ? <>
+            {financialNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={financialTab === key ? "page" : undefined} onClick={() => setFinancialTab(key)} className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[9px] font-extrabold ${financialTab === key ? "bg-amber-100 text-amber-950" : "text-muted"}`}><Icon className="size-3.5" aria-hidden="true" /><span className="truncate">{isFa ? fa : en}</span></button>)}
+            <button type="button" onClick={() => setSection("overview")} className="flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><ClipboardList className="size-3.5" aria-hidden="true" /><span>{isFa ? "بازگشت" : "Main"}</span></button>
+          </> : <>
+            <button type="button" onClick={() => setSection("overview")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-3.5" />{isFa ? "پروژه‌ها" : "Projects"}</button>
+            <button type="button" onClick={() => setSection("accounts")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-3.5" />{isFa ? "حساب‌ها" : "Accounts"}</button>
+            <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-3.5" />{isFa ? "کالاها" : "Catalog"}</button>
+            <button type="button" onClick={() => { setSection("financial"); setFinancialTab("overview"); }} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><WalletCards className="size-3.5" />{isFa ? "مالی" : "Finance"}</button>
+            {isAdmin && <Link href="/dashboard/users" className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><Users className="size-3.5" aria-hidden="true" />{m.users}</Link>}
+          </>}
         </div>
       </nav>
 
       <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-8 lg:px-8">
         <aside className="hidden lg:block">
           <div className="sticky top-24 rounded-[26px] border border-white/80 bg-white/85 p-4 shadow-xl shadow-forest/[0.04] backdrop-blur">
-            <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">{t.allProjects}</p>
-            <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
-            <button type="button" onClick={() => setSection("accounts")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
-            <button type="button" onClick={() => setSection("catalog")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Boxes className="size-4" aria-hidden="true" />{isFa ? "کالا و ملزومات" : "Products & supplies"}</button>
-            <button type="button" onClick={() => { setSection("financial"); setFinancialTab("receive"); }} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "financial" ? "bg-amber-100 text-amber-950" : "text-muted hover:bg-cream"}`}><WalletCards className="size-4" aria-hidden="true" />{isFa ? "مالی" : "Finance"}</button>
-            {isAdmin && <Link href="/dashboard/users" className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
+            <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">{section === "financial" ? (isFa ? "عملیات مالی" : "FINANCE") : t.allProjects}</p>
+            {section === "financial" ? <>
+              {financialNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={financialTab === key ? "page" : undefined} onClick={() => setFinancialTab(key)} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold transition ${financialTab === key ? "bg-amber-100 text-amber-950" : "text-muted hover:bg-cream"}`}><Icon className="size-4" aria-hidden="true" />{isFa ? fa : en}</button>)}
+              <button type="button" onClick={() => setSection("overview")} className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-line px-4 py-3 text-start text-sm font-extrabold text-muted transition hover:border-sage-dark hover:bg-sage/50"><ClipboardList className="size-4" aria-hidden="true" />{isFa ? "بازگشت به منوی اصلی" : "Back to main menu"}</button>
+            </> : <>
+              <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
+              <button type="button" onClick={() => setSection("accounts")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
+              <button type="button" onClick={() => setSection("catalog")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Boxes className="size-4" aria-hidden="true" />{isFa ? "کالا و ملزومات" : "Products & supplies"}</button>
+              <button type="button" onClick={() => { setSection("financial"); setFinancialTab("overview"); }} className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><WalletCards className="size-4" aria-hidden="true" />{isFa ? "مالی" : "Finance"}</button>
+              {isAdmin && <Link href="/dashboard/users" className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
+            </>}
             <div className="mt-5 rounded-2xl bg-forest p-4 text-white">
               <div className="grid size-10 place-items-center rounded-[14px] bg-white/10 text-amber-light"><Globe2 className="size-5" aria-hidden="true" /></div>
               <p className="mb-0 mt-4 text-sm font-extrabold">{t.approachKicker}</p>
@@ -343,7 +360,7 @@ export function ProjectDashboard() {
             </div>
           </div>}
 
-          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onTabChange={setFinancialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
+          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-6 grid grid-cols-2 gap-3 rounded-[24px] border border-white/80 bg-white/65 p-3 shadow-sm shadow-forest/[0.03] sm:grid-cols-[minmax(0,1fr)_190px_190px] sm:p-4">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
