@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Landmark, LoaderCircle, MapPin, Pencil, Phone, Plus, RefreshCw } from "lucide-react";
+import { Landmark, LoaderCircle, MapPin, Pencil, Phone, RefreshCw } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { ProjectModal } from "@/components/project-modal";
 import { jsonHeaders } from "@/lib/accounts";
@@ -15,19 +15,17 @@ const banks = ["بانک ملی ایران", "بانک ملت", "بانک صاد
 const emptyAccount = { name: "", accountNumber: "", bankName: banks[0], currency: "USD", openingBalance: "0", scope: "project", scopeProjectId: "", sharedScope: "project", isActive: true };
 
 type AccountDraft = typeof emptyAccount;
+export type AccountDirectoryView = "accounts" | "exchanges" | "new-account" | "new-exchange";
 
-export function AccountDirectoryWorkspace({ projects }: { projects: Project[] }) {
+export function AccountDirectoryWorkspace({ projects, view, onViewChange }: { projects: Project[]; view: AccountDirectoryView; onViewChange: (view: AccountDirectoryView) => void }) {
   const { locale } = useLocale();
   const fa = locale === "fa";
   const [projectCode, setProjectCode] = useState(projects[0]?.code ?? "");
-  const [tab, setTab] = useState<"accounts" | "exchanges">("accounts");
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [exchanges, setExchanges] = useState<LedgerExchange[]>([]);
   const [accountForm, setAccountForm] = useState<AccountDraft>({ ...emptyAccount, scopeProjectId: projects[0]?.id ?? "" });
   const [exchangeForm, setExchangeForm] = useState({ name: "", address: "", primaryPhone: "", secondaryPhone: "" });
   const [editing, setEditing] = useState<LedgerAccount | null>(null);
-  const [showAccountForm, setShowAccountForm] = useState(false);
-  const [showExchangeForm, setShowExchangeForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const path = `/api/v1/projects/${encodeURIComponent(projectCode)}/ledger`;
@@ -57,10 +55,10 @@ export function AccountDirectoryWorkspace({ projects }: { projects: Project[] })
       if (!response.ok) throw new Error(response.status === 409 ? "duplicate" : "save");
       if (kind === "account") {
         setAccountForm({ ...emptyAccount, scopeProjectId: projects[0]?.id ?? "" });
-        setShowAccountForm(false);
+        onViewChange("accounts");
       } else {
         setExchangeForm({ name: "", address: "", primaryPhone: "", secondaryPhone: "" });
-        setShowExchangeForm(false);
+        onViewChange("exchanges");
       }
       await load();
       setMessage(fa ? (kind === "account" ? "حساب با موفقیت ثبت شد." : "صرافی با موفقیت ثبت شد.") : (kind === "account" ? "Account saved." : "Exchange saved."));
@@ -111,19 +109,10 @@ export function AccountDirectoryWorkspace({ projects }: { projects: Project[] })
 
       {message && <p role="status" className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-900">{message}</p>}
 
-      <div className="mt-3 rounded-2xl border border-blue-100 bg-blue-50/80 p-1.5">
-        <p className="mb-1 px-2 text-[10px] font-extrabold text-blue-800">{fa ? "محدودسازی نمایش" : "Filter directory"}</p>
-        <div className="grid grid-cols-2 gap-1">
-          <button type="button" onClick={() => setTab("accounts")} className={`min-h-10 rounded-xl text-xs font-extrabold transition ${tab === "accounts" ? "bg-blue-700 text-white shadow-sm" : "text-blue-800 hover:bg-white/70"}`}>{fa ? `حساب‌ها (${accounts.length})` : `Accounts (${accounts.length})`}</button>
-          <button type="button" onClick={() => setTab("exchanges")} className={`min-h-10 rounded-xl text-xs font-extrabold transition ${tab === "exchanges" ? "bg-blue-700 text-white shadow-sm" : "text-blue-800 hover:bg-white/70"}`}>{fa ? `صرافی‌ها (${exchanges.length})` : `Exchanges (${exchanges.length})`}</button>
-        </div>
-      </div>
-
-      {tab === "accounts" ? (
+      {view === "accounts" || view === "new-account" ? (
         <div className="mt-3">
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3">
             <h3 className="m-0 text-sm font-black text-blue-950">{fa ? "فهرست حساب‌ها" : "Account list"}</h3>
-            <button type="button" onClick={() => { setShowAccountForm(true); setMessage(""); }} className={`${buttonClass} min-h-9 px-3 text-xs`}><Plus className="size-3.5" />{fa ? "تعریف حساب جدید" : "New account"}</button>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2">
             {accounts.length ? accounts.map((account) => (
@@ -142,9 +131,8 @@ export function AccountDirectoryWorkspace({ projects }: { projects: Project[] })
         </div>
       ) : (
         <div className="mt-3">
-          <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="mb-3">
             <h3 className="m-0 text-sm font-black text-blue-950">{fa ? "فهرست صرافی‌ها" : "Exchange list"}</h3>
-            <button type="button" onClick={() => { setShowExchangeForm(true); setMessage(""); }} className={`${buttonClass} min-h-9 px-3 text-xs`}><Plus className="size-3.5" />{fa ? "تعریف صرافی جدید" : "New exchange"}</button>
           </div>
           <div className="grid gap-2.5 sm:grid-cols-2">
             {exchanges.length ? exchanges.map((item) => (
@@ -161,9 +149,9 @@ export function AccountDirectoryWorkspace({ projects }: { projects: Project[] })
 
       <button type="button" onClick={() => void load()} className="mt-4 inline-flex items-center gap-2 text-[11px] font-bold text-slate-500 hover:text-blue-800"><RefreshCw className="size-3.5" />{fa ? "به‌روزرسانی فهرست" : "Refresh directory"}</button>
 
-      {showAccountForm && <ProjectModal title={fa ? "تعریف حساب جدید" : "Define new account"} onClose={() => { if (!busy) setShowAccountForm(false); }}><form onSubmit={(event) => void submit(event, "account")}><AccountFields value={accountForm} onChange={setAccountForm} fa={fa} projects={projects} /><button disabled={busy || !projectCode} className={`${buttonClass} mt-4 w-full`}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت حساب" : "Save account"}</button></form></ProjectModal>}
+      {view === "new-account" && <ProjectModal title={fa ? "تعریف حساب جدید" : "Define new account"} onClose={() => { if (!busy) onViewChange("accounts"); }}><form onSubmit={(event) => void submit(event, "account")}><AccountFields value={accountForm} onChange={setAccountForm} fa={fa} projects={projects} /><button disabled={busy || !projectCode} className={`${buttonClass} mt-4 w-full`}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت حساب" : "Save account"}</button></form></ProjectModal>}
 
-      {showExchangeForm && <ProjectModal title={fa ? "تعریف صرافی جدید" : "Define new exchange"} onClose={() => { if (!busy) setShowExchangeForm(false); }}><form onSubmit={(event) => void submit(event, "exchange")}><div className="mt-1 space-y-3"><label className="block text-xs font-bold">{fa ? "نام صرافی" : "Exchange name"}<input required value={exchangeForm.name} onChange={(event) => setExchangeForm({ ...exchangeForm, name: event.target.value })} className={inputClass} /></label><label className="block text-xs font-bold">{fa ? "آدرس" : "Address"}<input required value={exchangeForm.address} onChange={(event) => setExchangeForm({ ...exchangeForm, address: event.target.value })} className={inputClass} /></label><label className="block text-xs font-bold">{fa ? "شماره تماس اول" : "Primary phone"}<input required value={exchangeForm.primaryPhone} onChange={(event) => setExchangeForm({ ...exchangeForm, primaryPhone: event.target.value })} className={inputClass} dir="ltr" /></label><label className="block text-xs font-bold">{fa ? "شماره تماس دوم" : "Secondary phone"}<input required value={exchangeForm.secondaryPhone} onChange={(event) => setExchangeForm({ ...exchangeForm, secondaryPhone: event.target.value })} className={inputClass} dir="ltr" /></label><button disabled={busy || !projectCode} className={`${buttonClass} mt-1 w-full`}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت صرافی" : "Save exchange"}</button></div></form></ProjectModal>}
+      {view === "new-exchange" && <ProjectModal title={fa ? "تعریف صرافی جدید" : "Define new exchange"} onClose={() => { if (!busy) onViewChange("exchanges"); }}><form onSubmit={(event) => void submit(event, "exchange")}><div className="mt-1 space-y-3"><label className="block text-xs font-bold">{fa ? "نام صرافی" : "Exchange name"}<input required value={exchangeForm.name} onChange={(event) => setExchangeForm({ ...exchangeForm, name: event.target.value })} className={inputClass} /></label><label className="block text-xs font-bold">{fa ? "آدرس" : "Address"}<input required value={exchangeForm.address} onChange={(event) => setExchangeForm({ ...exchangeForm, address: event.target.value })} className={inputClass} /></label><label className="block text-xs font-bold">{fa ? "شماره تماس اول" : "Primary phone"}<input required value={exchangeForm.primaryPhone} onChange={(event) => setExchangeForm({ ...exchangeForm, primaryPhone: event.target.value })} className={inputClass} dir="ltr" /></label><label className="block text-xs font-bold">{fa ? "شماره تماس دوم" : "Secondary phone"}<input required value={exchangeForm.secondaryPhone} onChange={(event) => setExchangeForm({ ...exchangeForm, secondaryPhone: event.target.value })} className={inputClass} dir="ltr" /></label><button disabled={busy || !projectCode} className={`${buttonClass} mt-1 w-full`}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ثبت صرافی" : "Save exchange"}</button></div></form></ProjectModal>}
 
       {editing && <ProjectModal title={fa ? "ویرایش حساب" : "Edit account"} onClose={() => { if (!busy) setEditing(null); }}><form onSubmit={(event) => void updateAccount(event)}><AccountFields value={accountForm} onChange={setAccountForm} fa={fa} projects={projects} /><button className={`${buttonClass} mt-4 w-full`} disabled={busy}>{busy && <LoaderCircle className="size-4 animate-spin" />}{fa ? "ذخیره تغییرات" : "Save changes"}</button></form></ProjectModal>}
     </section>

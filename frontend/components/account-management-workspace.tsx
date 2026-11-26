@@ -1,8 +1,8 @@
 "use client";
 
-import { AccountDirectoryWorkspace } from "@/components/account-directory-workspace";
+import { AccountDirectoryWorkspace, type AccountDirectoryView } from "@/components/account-directory-workspace";
 import type { Project } from "@/lib/projects";
 
-export function AccountManagementWorkspace({ projects }: { projects: Project[] }) {
-  return <AccountDirectoryWorkspace projects={projects} />;
+export function AccountManagementWorkspace({ projects, tab, onTabChange }: { projects: Project[]; tab: AccountDirectoryView; onTabChange: (tab: AccountDirectoryView) => void }) {
+  return <AccountDirectoryWorkspace projects={projects} view={tab} onViewChange={onTabChange} />;
 }

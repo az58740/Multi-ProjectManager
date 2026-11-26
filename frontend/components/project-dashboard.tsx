@@ -22,12 +22,20 @@ import { isProjectListPayload, isProjectRecord, isProjectStatus, isProjectType, 
 type ModalMode = "create" | "edit" | "details" | null;
 type DashboardSection = "overview" | "accounts" | "catalog" | "financial";
 type FinancialTab = "overview" | "receive" | "pay" | "receive-fx" | "sell-fx";
+type AccountTab = "accounts" | "exchanges" | "new-account" | "new-exchange";
 
 const financialNavigation = [
   { key: "receive" as const, icon: HandCoins, fa: "دریافت", en: "Receipts" },
   { key: "pay" as const, icon: Wallet, fa: "پرداخت", en: "Payments" },
   { key: "receive-fx" as const, icon: CircleDollarSign, fa: "دریافت ارز", en: "Receive FX" },
   { key: "sell-fx" as const, icon: Coins, fa: "فروش ارز", en: "Sell FX" },
+];
+
+const accountNavigation = [
+  { key: "accounts" as const, icon: Landmark, fa: "حساب‌ها", en: "Accounts" },
+  { key: "exchanges" as const, icon: Coins, fa: "صرافی‌ها", en: "Exchanges" },
+  { key: "new-account" as const, icon: Plus, fa: "حساب جدید", en: "New account" },
+  { key: "new-exchange" as const, icon: MapPin, fa: "صرافی جدید", en: "New exchange" },
 ];
 
 function typeLabel(type: ProjectType, t: ReturnType<typeof useLocale>["t"]) {
@@ -99,6 +107,7 @@ export function ProjectDashboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [section, setSection] = useState<DashboardSection>("overview");
   const [financialTab, setFinancialTab] = useState<FinancialTab>("overview");
+  const [accountTab, setAccountTab] = useState<AccountTab>("accounts");
 
   useEffect(() => {
     let active = true;
@@ -299,7 +308,7 @@ export function ProjectDashboard() {
             {financialNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={financialTab === key ? "page" : undefined} onClick={() => setFinancialTab(key)} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-bold leading-4 tracking-normal ${financialTab === key ? "bg-amber-100 text-amber-950" : "text-muted"}`}><Icon className="size-4 shrink-0" aria-hidden="true" /><span className="whitespace-nowrap">{isFa ? fa : en}</span></button>)}
           </> : <>
             <button type="button" onClick={() => setSection("overview")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-3.5" />{isFa ? "پروژه‌ها" : "Projects"}</button>
-            <button type="button" onClick={() => setSection("accounts")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-3.5" />{isFa ? "حساب‌ها" : "Accounts"}</button>
+            <button type="button" onClick={() => { setSection("accounts"); setAccountTab("accounts"); }} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-3.5" />{isFa ? "حساب‌ها" : "Accounts"}</button>
             <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-3.5" />{isFa ? "کالاها" : "Catalog"}</button>
             <button type="button" onClick={() => { setSection("financial"); setFinancialTab("overview"); }} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><WalletCards className="size-3.5" />{isFa ? "مالی" : "Finance"}</button>
             <Link href="/dashboard/users" className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[9px] font-extrabold text-muted"><Users className="size-3.5 shrink-0" aria-hidden="true" /><span className="text-center leading-3">{m.userList}</span></Link>
@@ -316,7 +325,7 @@ export function ProjectDashboard() {
               <button type="button" onClick={() => setSection("overview")} aria-label={isFa ? "بازگشت به منوی اصلی" : "Back to main menu"} className="mt-3 inline-flex size-9 items-center justify-center rounded-xl border border-line text-muted transition hover:border-sage-dark hover:bg-sage/50"><ClipboardList className="size-4" aria-hidden="true" /></button>
             </> : <>
               <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
-              <button type="button" onClick={() => setSection("accounts")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
+              <button type="button" onClick={() => { setSection("accounts"); setAccountTab("accounts"); }} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
               <button type="button" onClick={() => setSection("catalog")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Boxes className="size-4" aria-hidden="true" />{isFa ? "کالا و ملزومات" : "Products & supplies"}</button>
               <button type="button" onClick={() => { setSection("financial"); setFinancialTab("overview"); }} className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><WalletCards className="size-4" aria-hidden="true" />{isFa ? "مالی" : "Finance"}</button>
               <Link href="/dashboard/users" className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><Users className="size-4" aria-hidden="true" />{m.userList}</Link>
@@ -339,6 +348,12 @@ export function ProjectDashboard() {
               <button type="button" onClick={() => setNotice("")} className="ms-auto rounded-full p-1 hover:bg-white/70" aria-label={t.close}><X className="size-4" aria-hidden="true" /></button>
             </div>
           )}
+          {section === "accounts" && <nav aria-label={isFa ? "زیرمنوی حساب‌ها" : "Account submenu"} className="mb-5 rounded-2xl border border-blue-100 bg-blue-50/80 p-1.5 shadow-sm">
+            <div className="grid grid-cols-4 gap-1">
+              {accountNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={accountTab === key ? "page" : undefined} onClick={() => setAccountTab(key)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-extrabold leading-4 transition sm:min-h-16 sm:text-xs ${accountTab === key ? "bg-blue-700 text-white shadow-sm" : "text-blue-900 hover:bg-white/70"}`}><Icon className="size-4 sm:size-5" aria-hidden="true" /><span className="whitespace-nowrap">{isFa ? fa : en}</span></button>)}
+            </div>
+            <button type="button" onClick={() => setSection("overview")} className="mt-1 inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-bold text-blue-800 hover:bg-white/70"><ClipboardList className="size-3.5" aria-hidden="true" />{isFa ? "بازگشت به منوی اصلی" : "Back to main menu"}</button>
+          </nav>}
           {section === "overview" && <div className="relative isolate overflow-hidden rounded-[24px] bg-forest px-4 py-4 text-white shadow-xl shadow-forest/10 sm:rounded-[28px] sm:px-7 sm:py-6">
             <div aria-hidden="true" className="pointer-events-none absolute -end-10 -top-20 size-64 rounded-full border-[36px] border-white/[0.045]" />
             <div aria-hidden="true" className="pointer-events-none absolute -end-2 -bottom-28 size-48 rounded-full border-[28px] border-amber-light/[0.08]" />
@@ -357,7 +372,7 @@ export function ProjectDashboard() {
             </div>
           </div>}
 
-          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
+          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} tab={accountTab} onTabChange={setAccountTab} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-6 grid grid-cols-2 gap-3 rounded-[24px] border border-white/80 bg-white/65 p-3 shadow-sm shadow-forest/[0.03] sm:grid-cols-[minmax(0,1fr)_190px_190px] sm:p-4">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
