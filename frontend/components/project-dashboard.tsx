@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Boxes, Building2, Check, CircleDollarSign, CirclePlus, ClipboardList, Coins, Globe2, HandCoins, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, Wallet, WalletCards, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
+import { AssistantWidget } from "@/components/assistant-widget";
 import { LanguageToggle } from "@/components/language-toggle";
 import { ProjectDetails } from "@/components/project-details";
 import { ProjectForm } from "@/components/project-form";
@@ -77,6 +78,7 @@ export function ProjectDashboard() {
   const m = accountMessages[locale];
   const [authorized, setAuthorized] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(true);
   const [sessionError, setSessionError] = useState(false);
   const [sessionAttempt, setSessionAttempt] = useState(0);
@@ -127,6 +129,7 @@ export function ProjectDashboard() {
         sessionVerified = true;
         if (active) {
           setIsAdmin(session.user?.role === "admin");
+          setUserName(session.user?.name ?? "");
           setAuthorized(true);
         }
 
@@ -444,6 +447,20 @@ export function ProjectDashboard() {
           </div>
         </div>
       </footer>}
+
+      <AssistantWidget
+        userName={userName}
+        onAction={(action) => {
+          if (!action) return;
+          if (action.type === "navigate") {
+            setSection(action.section);
+            if (action.section === "financial") setFinancialTab("overview");
+          } else if (action.type === "search") {
+            setSection("overview");
+            setQuery(action.query);
+          }
+        }}
+      />
 
       {modalMode && (
         <ProjectModal title={modalTitle} onClose={closeModal}>
