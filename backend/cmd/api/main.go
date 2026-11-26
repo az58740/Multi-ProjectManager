@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/az58740/multi-project-manager/backend/internal/assistant"
 	"github.com/az58740/multi-project-manager/backend/internal/auth"
 	"github.com/az58740/multi-project-manager/backend/internal/export"
 	"github.com/az58740/multi-project-manager/backend/internal/ledger"
@@ -36,6 +37,7 @@ func run() error {
 	var authStore auth.Store
 	var ledgerStore ledger.Store
 	var personalStore personal.Store
+	var assistantPreferences assistant.PreferenceStore
 	dataMode := "database"
 	if databaseURL != "" {
 		// Project migrations also install the additive authentication and export schemas.
@@ -69,6 +71,12 @@ func run() error {
 		}
 		defer personalDB.Close()
 		personalStore = personalDB
+		preferenceDB, err := assistant.NewPostgresStore(ctx, databaseURL)
+		if err != nil {
+			return fmt.Errorf("assistant preferences database initialization failed: %w", err)
+		}
+		defer preferenceDB.Close()
+		assistantPreferences = preferenceDB
 	} else {
 		if production {
 			return errors.New("DATABASE_URL is required in production; refusing to use ephemeral demo data")
@@ -80,6 +88,7 @@ func run() error {
 		authStore = auth.NewMemoryStore()
 		ledgerStore = ledger.NewMemoryStore()
 		personalStore = &personal.MemoryStore{}
+		assistantPreferences = assistant.NewMemoryStore()
 	}
 	localAuth, err := auth.New(authStore, os.Getenv("PUBLIC_APP_ORIGIN"), production)
 	if err != nil {
@@ -135,6 +144,9 @@ func run() error {
 	projectAccess := localAuth.RequireSameOrigin(localAuth.RequireSession(projectMux))
 	mux.Handle("/api/v1/projects", projectAccess)
 	mux.Handle("/api/v1/projects/", projectAccess)
+	assistantMux := http.NewServeMux()
+	assistant.NewHandler(assistantPreferences).Register(assistantMux)
+	mux.Handle("/api/v1/assistant/", localAuth.RequireSession(localAuth.RequireSameOrigin(assistantMux)))
 	mux.HandleFunc("GET /_health", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
