@@ -27,6 +27,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function isSameOriginRequest(request: Request, origin: string | null) {
+  if (!origin) return false;
+  const requestURL = new URL(request.url);
+  if (origin === requestURL.origin) return true;
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",", 1)[0]?.trim();
+  const host = forwardedHost || request.headers.get("host")?.trim();
+  if (!host) return false;
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",", 1)[0]?.trim();
+  const protocol = forwardedProto || requestURL.protocol.slice(0, -1);
+  return origin === `${protocol}://${host}`;
+}
+
 function pickFields(value: unknown, fields: string[]) {
   if (!isRecord(value)) return {};
   const result: Record<string, string | number | boolean | string[]> = {};
@@ -50,9 +62,8 @@ function parsePreferences(value: unknown): Preferences {
 }
 
 export async function POST(request: Request) {
-  const requestURL = new URL(request.url);
   const origin = request.headers.get("origin");
-  if (!origin || origin !== requestURL.origin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (!origin || !isSameOriginRequest(request, origin)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const cookie = request.headers.get("cookie") ?? "";
   if (!cookie) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -256,7 +267,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ reply: result.text || (locale === "fa" ? "انجام شد." : "Done."), action: requestedAction });
-  } catch {
+  } catch (error) {
+    console.error("assistant request failed", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "assistant_unavailable" }, { status: 503 });
   }
 }
