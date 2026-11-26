@@ -6,7 +6,8 @@ import { useLocale } from "@/app/providers";
 
 type Message = { role: "user" | "assistant"; content: string };
 type DashboardSection = "overview" | "accounts" | "catalog" | "financial";
-type AgentAction = { type: "navigate"; section: DashboardSection } | { type: "search"; query: string } | null;
+type FinancialTab = "overview" | "receive" | "pay" | "receive-fx" | "sell-fx";
+type AgentAction = { type: "navigate"; section: DashboardSection; tab?: FinancialTab } | { type: "search"; query: string } | null;
 type SpeechRecognitionResult = { 0: { transcript: string }; isFinal: boolean };
 type SpeechRecognitionLike = {
   lang: string;
@@ -47,10 +48,10 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = isFa ? "fa-IR" : "en-US";
+    utterance.lang = /[\u0600-\u06ff]/u.test(text) ? "fa-IR" : "en-US";
     utterance.rate = 0.95;
     window.speechSynthesis.speak(utterance);
-  }, [isFa]);
+  }, []);
 
   const sendMessage = useCallback(async (rawText: string, spoken = false) => {
     const text = rawText.trim();
@@ -77,7 +78,8 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
       setMessages(updatedMessages);
       if ("action" in payload && payload.action && typeof payload.action === "object") {
         const action = payload.action as AgentAction;
-        if (action && (action.type === "navigate" || action.type === "search")) onAction(action);
+        if (action?.type === "navigate" && ["overview", "accounts", "catalog", "financial"].includes(action.section)) onAction(action);
+        else if (action?.type === "search" && typeof action.query === "string") onAction(action);
       }
       if (spoken) speak(reply);
     } catch {
@@ -139,7 +141,7 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
           {messages.length === 0 && <div className="rounded-2xl border border-sage-dark/20 bg-sage/40 p-4">
             <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/75 px-2.5 py-1 text-[10px] font-bold text-forest"><Sparkles className="size-3" aria-hidden="true" />{isFa ? "دستیار آماده است" : "Assistant online"}</span>
             <p className="m-0 text-sm font-bold leading-6 text-forest">{isFa ? `${userName || "سلام"} عزیز، چطور می‌توانم کمک کنم؟ می‌توانید دربارهٔ پروژه‌ها بپرسید یا بخواهید بخشی را باز کنم.` : `Hello ${userName || "there"}, how can I help? Ask about projects or tell me which section to open.`}</p>
-            <p className="mb-0 mt-2 text-xs leading-5 text-muted">{isFa ? "برای گفت‌وگو با صدا، دکمهٔ میکروفن را بزنید و اجازهٔ مرورگر را تأیید کنید." : "To speak, press the microphone button and allow browser access."}</p>
+            <p className="mb-0 mt-2 text-xs leading-5 text-muted">{isFa ? "برای گفت‌وگوی صوتی، میکروفن را بزنید و اجازهٔ مرورگر را بدهید. برای ذخیرهٔ ترجیح، صریحاً بگویید «این را به خاطر بسپار»." : "To speak, press the microphone and allow browser access. To save a preference, explicitly say “remember this”."}</p>
           </div>}
           {messages.map((message, index) => <div key={`${index}-${message.role}`} className={`max-w-[90%] rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${message.role === "user" ? "ms-auto bg-forest text-white" : "me-auto border border-line bg-white text-ink"}`}>
             <p className="m-0 whitespace-pre-wrap">{message.content}</p>
@@ -148,7 +150,7 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
           {error && <p role="alert" className="m-0 rounded-xl bg-red-50 px-3 py-2 text-xs leading-5 text-red-700">{error}</p>}
         </div>
 
-        <form onSubmit={(event) => { event.preventDefault(); void sendMessage(input); }} className="flex items-center gap-2 border-t border-line bg-white p-3">
+        <form onSubmit={(event) => { event.preventDefault(); void sendMessage(input); }} onKeyDown={(event) => { if (event.key === "Enter" && (event.nativeEvent.isComposing || event.keyCode === 229)) event.preventDefault(); }} className="flex items-center gap-2 border-t border-line bg-white p-3">
           <button type="button" onClick={listening ? stopListening : startListening} disabled={busy} aria-label={listening ? (isFa ? "توقف ضبط صدا" : "Stop listening") : (isFa ? "شروع گفتار" : "Start voice input")} className={`grid size-10 shrink-0 place-items-center rounded-xl transition disabled:opacity-50 ${listening ? "bg-red-100 text-red-700" : "bg-sage/55 text-forest hover:bg-sage"}`}>
             {listening ? <MicOff className="size-4" aria-hidden="true" /> : <Mic className="size-4" aria-hidden="true" />}
           </button>

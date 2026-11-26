@@ -454,7 +454,7 @@ export function ProjectDashboard() {
           if (!action) return;
           if (action.type === "navigate") {
             setSection(action.section);
-            if (action.section === "financial") setFinancialTab("overview");
+            if (action.section === "financial") setFinancialTab(action.tab ?? "overview");
           } else if (action.type === "search") {
             setSection("overview");
             setQuery(action.query);
