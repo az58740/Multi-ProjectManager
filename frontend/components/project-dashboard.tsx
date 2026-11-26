@@ -282,12 +282,12 @@ export function ProjectDashboard() {
   return (
     <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#edf3ea_0%,_#f7f7f1_40%,_#f7f7f1_100%)] pb-24 lg:pb-0">
       <header className="sticky top-0 z-20 border-b border-line/80 bg-paper/90 shadow-sm shadow-forest/[0.03] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
-          <Link href="/" className="inline-flex items-center gap-3"><BrandMark /></Link>
-          <div className="flex items-center gap-2 sm:gap-3">
+        <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-3 py-2 sm:gap-4 sm:px-6 sm:py-2.5 lg:px-8">
+          <Link href="/" className="inline-flex items-center"><span className="sm:hidden"><BrandMark compact /></span><span className="hidden sm:inline-flex"><BrandMark /></span></Link>
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <LanguageToggle />
-            <button type="button" onClick={signOut} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm font-semibold text-muted transition hover:border-sage-dark hover:bg-sage/60 hover:text-forest">
-              <LogOut className="size-4" aria-hidden="true" /><span className="hidden sm:inline">{t.logout}</span>
+            <button type="button" onClick={signOut} className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-white px-2.5 text-xs font-semibold text-muted transition hover:border-sage-dark hover:bg-sage/60 hover:text-forest sm:min-h-10 sm:gap-2 sm:px-4 sm:text-sm">
+              <LogOut className="size-3.5 sm:size-4" aria-hidden="true" /><span className="hidden sm:inline">{t.logout}</span>
             </button>
           </div>
         </div>
@@ -339,26 +339,21 @@ export function ProjectDashboard() {
               <button type="button" onClick={() => setNotice("")} className="ms-auto rounded-full p-1 hover:bg-white/70" aria-label={t.close}><X className="size-4" aria-hidden="true" /></button>
             </div>
           )}
-          {section === "overview" && <div className="relative isolate overflow-hidden rounded-[28px] bg-forest px-5 py-6 text-white shadow-xl shadow-forest/10 sm:px-7 sm:py-8">
+          {section === "overview" && <div className="relative isolate overflow-hidden rounded-[24px] bg-forest px-4 py-4 text-white shadow-xl shadow-forest/10 sm:rounded-[28px] sm:px-7 sm:py-6">
             <div aria-hidden="true" className="pointer-events-none absolute -end-10 -top-20 size-64 rounded-full border-[36px] border-white/[0.045]" />
             <div aria-hidden="true" className="pointer-events-none absolute -end-2 -bottom-28 size-48 rounded-full border-[28px] border-amber-light/[0.08]" />
-            <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+            <div className="relative flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-5">
               <div className="min-w-0">
-                <p className="mb-2 text-xs font-bold tracking-wide text-amber-light">{isFa ? "نمای کلی فعالیت‌ها" : "WORKSPACE OVERVIEW"}</p>
-                <h1 className="m-0 truncate text-xl font-black leading-tight tracking-tight sm:text-3xl">{t.dashboardKicker}</h1>
-                <p className="mb-0 mt-2 max-w-2xl text-xs leading-6 text-white/75 sm:text-sm sm:leading-7">{t.dashboardSubtitle}</p>
+                <p className="mb-1 text-[10px] font-bold tracking-wide text-amber-light sm:text-xs">{isFa ? "نمای کلی فعالیت‌ها" : "WORKSPACE OVERVIEW"}</p>
+                <h1 className="m-0 truncate text-lg font-black leading-tight tracking-tight sm:text-2xl">{t.dashboardKicker}</h1>
+                <p className="mb-0 mt-1 max-w-2xl text-[11px] leading-5 text-white/75 sm:mt-2 sm:text-xs sm:leading-6">{t.dashboardSubtitle}</p>
               </div>
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {isAdmin && <Link href="/dashboard/users" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 text-sm font-extrabold text-white transition hover:bg-white/20"><Users className="size-4" aria-hidden="true" />{m.users}</Link>}
-                <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-amber-light px-4 text-xs font-extrabold text-forest shadow-md shadow-black/10 transition hover:-translate-y-0.5 hover:bg-amber-bright sm:px-5 sm:text-sm">
-                  <CirclePlus className="size-4" aria-hidden="true" />{isFa ? "پروژه جدید" : "New project"}
+              <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
+                {isAdmin && <Link href="/dashboard/users" className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 text-[11px] font-extrabold text-white transition hover:bg-white/20 sm:min-h-10 sm:gap-2 sm:px-4 sm:text-sm"><Users className="size-3.5 sm:size-4" aria-hidden="true" /><span className="hidden sm:inline">{m.users}</span></Link>}
+                <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); setNotice(""); }} className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-full bg-amber-light px-3 text-[11px] font-extrabold text-forest shadow-md shadow-black/10 transition hover:-translate-y-0.5 hover:bg-amber-bright sm:min-h-10 sm:gap-2 sm:px-5 sm:text-sm">
+                  <CirclePlus className="size-3.5 sm:size-4" aria-hidden="true" />{isFa ? "پروژه جدید" : "New project"}
                 </button>
               </div>
-            </div>
-            <div className="relative mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-white/15 pt-4 text-xs font-semibold text-white/80 sm:mt-6 sm:gap-x-8">
-              <span>{t.summaryTotal}: <strong className="ms-1 text-base font-black text-white">{counts.total.toLocaleString(isFa ? "fa-IR" : "en-US")}</strong></span>
-              <span>{t.summaryActive}: <strong className="ms-1 text-base font-black text-white">{counts.active.toLocaleString(isFa ? "fa-IR" : "en-US")}</strong></span>
-              <span>{t.summaryPlanning}: <strong className="ms-1 text-base font-black text-white">{counts.planning.toLocaleString(isFa ? "fa-IR" : "en-US")}</strong></span>
             </div>
           </div>}
 
