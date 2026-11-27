@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Boxes, Building2, Check, CircleDollarSign, CirclePlus, ClipboardList, Coins, Globe2, HandCoins, Landmark, Leaf, LogOut, MapPin, PackagePlus, Plus, Search, Snowflake, Store, Users, Wallet, WalletCards, Warehouse, X } from "lucide-react";
+import { Boxes, Building2, Check, CircleDollarSign, CirclePlus, ClipboardList, Coins, Globe2, HandCoins, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Store, Users, Wallet, WalletCards, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { AssistantWidget } from "@/components/assistant-widget";
@@ -28,8 +28,8 @@ type CatalogTab = "products" | "supplies" | "new-product" | "new-supply";
 const catalogNavigation = [
   { key: "products" as const, icon: Boxes, fa: "کالاها", en: "Products" },
   { key: "supplies" as const, icon: Store, fa: "ملزومات", en: "Supplies" },
-  { key: "new-product" as const, icon: PackagePlus, fa: "کالای جدید", en: "New product" },
-  { key: "new-supply" as const, icon: CirclePlus, fa: "ملزومات جدید", en: "New supply" },
+  { key: "new-product" as const, icon: Plus, fa: "کالا", en: "Product" },
+  { key: "new-supply" as const, icon: CirclePlus, fa: "ملزومات", en: "Supplies" },
 ];
 
 const financialNavigation = [
