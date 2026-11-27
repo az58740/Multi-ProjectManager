@@ -13,6 +13,7 @@ type SpeechRecognitionLike = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  maxAlternatives?: number;
   onresult: ((event: { results: ArrayLike<SpeechRecognitionResult>; resultIndex: number }) => void) | null;
   onerror: (() => void) | null;
   onend: (() => void) | null;
@@ -145,16 +146,24 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
     const recognition = new SpeechRecognitionConstructor();
     recognition.lang = isFa ? "fa-IR" : "en-US";
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 3;
     keepListeningRef.current = true;
     transcriptRef.current = "";
     listenDeadlineRef.current = Date.now() + 90_000;
     recognition.onresult = (event) => {
-      const newFinalResults = Array.from(event.results).slice(event.resultIndex)
+      const currentResults = Array.from(event.results).slice(event.resultIndex);
+      const finalResults = currentResults
         .filter((result) => result.isFinal)
         .map((result) => result[0]?.transcript.trim() ?? "")
         .filter(Boolean);
-      if (newFinalResults.length) transcriptRef.current = [transcriptRef.current, ...newFinalResults].filter(Boolean).join(" ");
+      if (finalResults.length) transcriptRef.current = [transcriptRef.current, ...finalResults].filter(Boolean).join(" ");
+      const interimText = currentResults
+        .filter((result) => !result.isFinal)
+        .map((result) => result[0]?.transcript.trim() ?? "")
+        .filter(Boolean)
+        .join(" ");
+      setInput([transcriptRef.current, interimText].filter(Boolean).join(" "));
     };
     recognition.onerror = () => {
       keepListeningRef.current = false;
@@ -176,7 +185,13 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
       setListening(false);
       const spokenText = transcriptRef.current.trim();
       transcriptRef.current = "";
-      if (spokenText) void sendMessage(spokenText, true);
+      if (spokenText) {
+        setInput(spokenText);
+        setError(isFa ? "متن تشخیص‌داده‌شده را بررسی یا اصلاح کنید، سپس ارسال را بزنید." : "Review or correct the recognized text, then press send.");
+      } else {
+        setInput("");
+        setError(isFa ? "گفتاری تشخیص داده نشد؛ دوباره تلاش کنید یا پیام را تایپ کنید." : "No speech was recognized. Try again or type your message.");
+      }
     };
     recognitionRef.current = recognition;
     setError("");
@@ -230,7 +245,7 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
                 <li>Remember a preference when you explicitly ask me to.</li>
               </>}
             </ul>
-            <p className="mb-0 mt-2 text-[11px] leading-5 text-muted">{isFa ? "برای گفت‌وگوی صوتی، میکروفن را بزنید؛ تا ۹۰ ثانیه گوش می‌دهم و با توقف شما، گفتار را می‌فرستم." : "Press the microphone to speak. I can listen for up to 90 seconds; stop to submit your speech."}</p>
+            <p className="mb-0 mt-2 text-[11px] leading-5 text-muted">{isFa ? "برای گفت‌وگوی صوتی، میکروفن را بزنید؛ متن گفتار را بررسی و اصلاح کنید و سپس ارسال را بزنید." : "Press the microphone to speak, review or correct the transcript, then press send."}</p>
           </div>}
           {messages.map((message, index) => <div key={`${index}-${message.role}`} className={`max-w-[90%] rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${message.role === "user" ? "ms-auto bg-forest text-white" : "me-auto border border-line bg-white text-ink"}`}>
             <p className="m-0 whitespace-pre-wrap">{message.content}</p>
