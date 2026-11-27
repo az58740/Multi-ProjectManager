@@ -29,7 +29,7 @@ const catalogNavigation = [
   { key: "products" as const, icon: Boxes, fa: "کالاها", en: "Products" },
   { key: "supplies" as const, icon: Store, fa: "ملزومات", en: "Supplies" },
   { key: "new-product" as const, icon: Plus, fa: "کالا", en: "Product" },
-  { key: "new-supply" as const, icon: CirclePlus, fa: "ملزومات", en: "Supplies" },
+  { key: "new-supply" as const, icon: Plus, fa: "ملزومات", en: "Supplies" },
 ];
 
 const financialNavigation = [
@@ -382,7 +382,7 @@ export function ProjectDashboard() {
             </div>
           </div>}
 
-          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} tab={accountTab} onTabChange={setAccountTab} onBack={() => setSection("overview")} /> : <ProjectResourcesWorkspace projects={projects} tab={catalogTab} onTabChange={setCatalogTab} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
+          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} tab={accountTab} onTabChange={setAccountTab} onBack={() => setSection("overview")} /> : <ProjectResourcesWorkspace projects={projects} tab={catalogTab} onTabChange={setCatalogTab} onBack={() => setSection("overview")} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-6 grid grid-cols-2 gap-3 rounded-[24px] border border-white/80 bg-white/65 p-3 shadow-sm shadow-forest/[0.03] sm:grid-cols-[minmax(0,1fr)_190px_190px] sm:p-4">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
