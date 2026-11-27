@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Boxes, Building2, Check, CircleDollarSign, CirclePlus, ClipboardList, Coins, Globe2, HandCoins, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Users, Wallet, WalletCards, Warehouse, X } from "lucide-react";
+import { Boxes, Building2, Check, CircleDollarSign, CirclePlus, ClipboardList, Coins, Globe2, HandCoins, Landmark, Leaf, LogOut, MapPin, PackagePlus, Plus, Search, Snowflake, Store, Users, Wallet, WalletCards, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { AssistantWidget } from "@/components/assistant-widget";
@@ -23,6 +23,14 @@ type ModalMode = "create" | "edit" | "details" | null;
 type DashboardSection = "overview" | "accounts" | "catalog" | "financial";
 type FinancialTab = "overview" | "receive" | "pay" | "receive-fx" | "sell-fx";
 type AccountTab = "accounts" | "exchanges" | "new-account" | "new-exchange";
+type CatalogTab = "products" | "supplies" | "new-product" | "new-supply";
+
+const catalogNavigation = [
+  { key: "products" as const, icon: Boxes, fa: "کالاها", en: "Products" },
+  { key: "supplies" as const, icon: Store, fa: "ملزومات", en: "Supplies" },
+  { key: "new-product" as const, icon: PackagePlus, fa: "تعریف کالا", en: "Add product" },
+  { key: "new-supply" as const, icon: CirclePlus, fa: "تعریف ملزومات", en: "Add supply" },
+];
 
 const financialNavigation = [
   { key: "receive" as const, icon: HandCoins, fa: "دریافت", en: "Receipts" },
@@ -34,7 +42,7 @@ const financialNavigation = [
 const accountNavigation = [
   { key: "accounts" as const, icon: Landmark, fa: "حساب‌ها", en: "Accounts" },
   { key: "exchanges" as const, icon: Coins, fa: "صرافی‌ها", en: "Exchanges" },
-  { key: "new-account" as const, icon: Plus, fa: "حساب جدید", en: "New account" },
+  { key: "new-account" as const, icon: Plus, fa: "حساب صرافی", en: "Exchange account" },
   { key: "new-exchange" as const, icon: MapPin, fa: "صرافی جدید", en: "New exchange" },
 ];
 
@@ -108,6 +116,7 @@ export function ProjectDashboard() {
   const [section, setSection] = useState<DashboardSection>("overview");
   const [financialTab, setFinancialTab] = useState<FinancialTab>("overview");
   const [accountTab, setAccountTab] = useState<AccountTab>("accounts");
+  const [catalogTab, setCatalogTab] = useState<CatalogTab>("products");
 
   useEffect(() => {
     let active = true;
@@ -307,12 +316,15 @@ export function ProjectDashboard() {
           {section === "financial" ? <>
             {financialNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={financialTab === key ? "page" : undefined} onClick={() => setFinancialTab(key)} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-bold leading-4 tracking-normal ${financialTab === key ? "bg-amber-100 text-amber-950" : "text-muted"}`}><Icon className="size-4 shrink-0" aria-hidden="true" /><span className="whitespace-nowrap">{isFa ? fa : en}</span></button>)}
           </> : section === "accounts" ? <>
-            {accountNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={accountTab === key ? "page" : undefined} onClick={() => setAccountTab(key)} className={`mx-0.5 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl px-1 text-[7px] font-extrabold leading-3 tracking-tight transition ${accountTab === key ? "bg-blue-100 text-blue-900" : "text-muted"}`}><Icon className="size-3.5 shrink-0" aria-hidden="true" /><span className="max-w-full text-center whitespace-normal break-words">{isFa ? fa : en}</span></button>)}
-            <button type="button" onClick={() => setSection("overview")} className="mx-0.5 flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-xl px-1 text-[7px] font-extrabold leading-3 tracking-tight text-muted"><ClipboardList className="size-3.5 shrink-0" aria-hidden="true" /><span className="max-w-full text-center whitespace-normal break-words">{isFa ? "بازگشت" : "Back"}</span></button>
+            {accountNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={accountTab === key ? "page" : undefined} onClick={() => setAccountTab(key)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[9px] font-extrabold leading-3 transition ${accountTab === key ? "bg-blue-100 text-blue-900" : "text-muted hover:bg-cream"}`}><span className={`grid size-7 place-items-center rounded-lg ${accountTab === key ? "bg-white text-blue-800 shadow-sm" : "bg-cream text-blue-800"}`}><Icon className="size-4" aria-hidden="true" /></span><span className="max-w-full text-center whitespace-nowrap">{isFa ? fa : en}</span></button>)}
+            <button type="button" onClick={() => setSection("overview")} className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[9px] font-extrabold leading-3 text-muted"><span className="grid size-7 place-items-center rounded-lg bg-cream text-forest"><ClipboardList className="size-4" aria-hidden="true" /></span><span className="text-center whitespace-nowrap">{isFa ? "بازگشت" : "Back"}</span></button>
+          </> : section === "catalog" ? <>
+            {catalogNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={catalogTab === key ? "page" : undefined} onClick={() => setCatalogTab(key)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[9px] font-extrabold leading-3 transition ${catalogTab === key ? "bg-emerald-100 text-emerald-900" : "text-muted hover:bg-cream"}`}><span className={`grid size-7 place-items-center rounded-lg ${catalogTab === key ? "bg-white text-emerald-800 shadow-sm" : "bg-cream text-emerald-800"}`}><Icon className="size-4" aria-hidden="true" /></span><span className="max-w-full text-center whitespace-nowrap">{isFa ? fa : en}</span></button>)}
+            <button type="button" onClick={() => setSection("overview")} className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[9px] font-extrabold leading-3 text-muted"><span className="grid size-7 place-items-center rounded-lg bg-cream text-forest"><ClipboardList className="size-4" aria-hidden="true" /></span><span className="text-center whitespace-nowrap">{isFa ? "بازگشت" : "Back"}</span></button>
           </> : <>
             <button type="button" onClick={() => setSection("overview")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-3.5" />{isFa ? "پروژه‌ها" : "Projects"}</button>
             <button type="button" onClick={() => { setSection("accounts"); setAccountTab("accounts"); }} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><Landmark className="size-3.5" />{isFa ? "حساب‌ها" : "Accounts"}</button>
-            <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-3.5" />{isFa ? "کالاها" : "Catalog"}</button>
+            <button type="button" onClick={() => setSection("catalog")} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><Boxes className="size-3.5" />{isFa ? "کالاها" : "Catalog"}</button>
             <button type="button" onClick={() => { setSection("financial"); setFinancialTab("overview"); }} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><WalletCards className="size-3.5" />{isFa ? "مالی" : "Finance"}</button>
             <Link href="/dashboard/users" className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[9px] font-extrabold text-muted"><Users className="size-3.5 shrink-0" aria-hidden="true" /><span className="text-center leading-3">{m.userList}</span></Link>
           </>}
@@ -326,10 +338,13 @@ export function ProjectDashboard() {
             {section === "financial" ? <>
               {financialNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={financialTab === key ? "page" : undefined} onClick={() => setFinancialTab(key)} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-2 text-start text-[11px] font-semibold leading-5 tracking-normal transition ${financialTab === key ? "bg-amber-100 text-amber-950" : "text-muted hover:bg-cream"}`}><span className={`grid size-8 shrink-0 place-items-center rounded-xl ${financialTab === key ? "bg-white text-amber-800" : "bg-cream text-forest"}`}><Icon className="size-4" aria-hidden="true" /></span><span className="whitespace-nowrap">{isFa ? fa : en}</span></button>)}
               <button type="button" onClick={() => setSection("overview")} aria-label={isFa ? "بازگشت به منوی اصلی" : "Back to main menu"} className="mt-3 inline-flex size-9 items-center justify-center rounded-xl border border-line text-muted transition hover:border-sage-dark hover:bg-sage/50"><ClipboardList className="size-4" aria-hidden="true" /></button>
+            </> : section === "catalog" ? <>
+              {catalogNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={catalogTab === key ? "page" : undefined} onClick={() => setCatalogTab(key)} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-start text-xs font-bold transition ${catalogTab === key ? "bg-emerald-100 text-emerald-950" : "text-muted hover:bg-cream"}`}><span className={`grid size-8 shrink-0 place-items-center rounded-xl ${catalogTab === key ? "bg-white text-emerald-800" : "bg-cream text-emerald-800"}`}><Icon className="size-4" aria-hidden="true" /></span><span>{isFa ? fa : en}</span></button>)}
+              <button type="button" onClick={() => setSection("overview")} aria-label={isFa ? "بازگشت به منوی اصلی" : "Back to main menu"} className="mt-3 inline-flex size-9 items-center justify-center rounded-xl border border-line text-muted transition hover:border-sage-dark hover:bg-sage/50"><ClipboardList className="size-4" aria-hidden="true" /></button>
             </> : <>
               <button type="button" onClick={() => setSection("overview")} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><ClipboardList className="size-4" aria-hidden="true" />{t.activeProjects}</button>
               <button type="button" onClick={() => { setSection("accounts"); setAccountTab("accounts"); }} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Landmark className="size-4" aria-hidden="true" />{isFa ? "مدیریت حساب‌ها" : "Account management"}</button>
-              <button type="button" onClick={() => setSection("catalog")} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Boxes className="size-4" aria-hidden="true" />{isFa ? "کالا و ملزومات" : "Products & supplies"}</button>
+              <button type="button" onClick={() => setSection("catalog")} className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><Boxes className="size-4" aria-hidden="true" />{isFa ? "کالا و ملزومات" : "Products & supplies"}</button>
               <button type="button" onClick={() => { setSection("financial"); setFinancialTab("overview"); }} className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><WalletCards className="size-4" aria-hidden="true" />{isFa ? "مالی" : "Finance"}</button>
               <Link href="/dashboard/users" className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold text-muted hover:bg-cream"><Users className="size-4" aria-hidden="true" />{m.userList}</Link>
             </>}
@@ -369,7 +384,7 @@ export function ProjectDashboard() {
             </div>
           </div>}
 
-          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} tab={accountTab} onTabChange={setAccountTab} onBack={() => setSection("overview")} /> : <ProjectResourcesWorkspace projects={projects} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
+          {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} tab={accountTab} onTabChange={setAccountTab} onBack={() => setSection("overview")} /> : <ProjectResourcesWorkspace projects={projects} tab={catalogTab} onTabChange={setCatalogTab} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
           <div className="mt-6 grid grid-cols-2 gap-3 rounded-[24px] border border-white/80 bg-white/65 p-3 shadow-sm shadow-forest/[0.03] sm:grid-cols-[minmax(0,1fr)_190px_190px] sm:p-4">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
