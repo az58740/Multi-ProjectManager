@@ -72,6 +72,7 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const listenTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const silenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listenDeadlineRef = useRef(0);
   const keepListeningRef = useRef(false);
   const transcriptRef = useRef("");
@@ -152,6 +153,11 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
     transcriptRef.current = "";
     listenDeadlineRef.current = Date.now() + 90_000;
     recognition.onresult = (event) => {
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = setTimeout(() => {
+        keepListeningRef.current = false;
+        recognition.stop();
+      }, 2_500);
       const currentResults = Array.from(event.results).slice(event.resultIndex);
       const finalResults = currentResults
         .filter((result) => result.isFinal)
@@ -167,11 +173,13 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
     };
     recognition.onerror = () => {
       keepListeningRef.current = false;
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
       if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
       setListening(false);
       setError(isFa ? "دسترسی میکروفن ممکن نیست؛ اجازهٔ میکروفن را بررسی کنید." : "Microphone access failed. Check your microphone permission.");
     };
     recognition.onend = () => {
+      if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
       if (keepListeningRef.current && Date.now() < listenDeadlineRef.current) {
         try {
           recognition.start();
