@@ -13,7 +13,7 @@ type SpeechRecognitionLike = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
-  onresult: ((event: { results: ArrayLike<SpeechRecognitionResult> }) => void) | null;
+  onresult: ((event: { results: ArrayLike<SpeechRecognitionResult>; resultIndex: number }) => void) | null;
   onerror: (() => void) | null;
   onend: (() => void) | null;
   start: () => void;
@@ -70,6 +70,10 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const listenTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const listenDeadlineRef = useRef(0);
+  const keepListeningRef = useRef(false);
+  const transcriptRef = useRef("");
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
@@ -140,31 +144,60 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
     }
     const recognition = new SpeechRecognitionConstructor();
     recognition.lang = isFa ? "fa-IR" : "en-US";
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
+    keepListeningRef.current = true;
+    transcriptRef.current = "";
+    listenDeadlineRef.current = Date.now() + 90_000;
     recognition.onresult = (event) => {
-      const spokenText = Array.from(event.results).map((result) => result[0]?.transcript ?? "").join(" ").trim();
-      if (spokenText) void sendMessage(spokenText, true);
+      const newFinalResults = Array.from(event.results).slice(event.resultIndex)
+        .filter((result) => result.isFinal)
+        .map((result) => result[0]?.transcript.trim() ?? "")
+        .filter(Boolean);
+      if (newFinalResults.length) transcriptRef.current = [transcriptRef.current, ...newFinalResults].filter(Boolean).join(" ");
     };
     recognition.onerror = () => {
+      keepListeningRef.current = false;
+      if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
       setListening(false);
       setError(isFa ? "دسترسی میکروفن ممکن نیست؛ اجازهٔ میکروفن را بررسی کنید." : "Microphone access failed. Check your microphone permission.");
     };
-    recognition.onend = () => setListening(false);
+    recognition.onend = () => {
+      if (keepListeningRef.current && Date.now() < listenDeadlineRef.current) {
+        try {
+          recognition.start();
+          return;
+        } catch {
+          keepListeningRef.current = false;
+        }
+      }
+      keepListeningRef.current = false;
+      if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
+      setListening(false);
+      const spokenText = transcriptRef.current.trim();
+      transcriptRef.current = "";
+      if (spokenText) void sendMessage(spokenText, true);
+    };
     recognitionRef.current = recognition;
     setError("");
     setListening(true);
+    listenTimeoutRef.current = setTimeout(() => {
+      keepListeningRef.current = false;
+      recognition.stop();
+    }, 90_000);
     try {
       recognition.start();
     } catch {
+      keepListeningRef.current = false;
+      if (listenTimeoutRef.current) clearTimeout(listenTimeoutRef.current);
       setListening(false);
       setError(isFa ? "میکروفن در حال استفاده است یا اجازهٔ دسترسی داده نشده." : "The microphone is busy or permission was denied.");
     }
   }
 
   function stopListening() {
+    keepListeningRef.current = false;
     recognitionRef.current?.stop();
-    setListening(false);
   }
 
   return (
@@ -182,8 +215,22 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
         <div ref={scrollRef} aria-live="polite" className="flex-1 space-y-3 overflow-y-auto bg-[#fbfcfa] p-4">
           {messages.length === 0 && <div className="rounded-2xl border border-sage-dark/20 bg-sage/40 p-4">
             <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/75 px-2.5 py-1 text-[10px] font-bold text-forest"><Sparkles className="size-3" aria-hidden="true" />{isFa ? "دستیار آماده است" : "Assistant online"}</span>
-            <p className="m-0 text-sm font-bold leading-6 text-forest">{isFa ? `${userName || "سلام"} عزیز، چطور می‌توانم کمک کنم؟ می‌توانید دربارهٔ پروژه‌ها بپرسید یا بخواهید بخشی را باز کنم.` : `Hello ${userName || "there"}, how can I help? Ask about projects or tell me which section to open.`}</p>
-            <p className="mb-0 mt-2 text-xs leading-5 text-muted">{isFa ? "برای گفت‌وگوی صوتی، میکروفن را بزنید و اجازهٔ مرورگر را بدهید. برای ذخیرهٔ ترجیح، صریحاً بگویید «این را به خاطر بسپار»." : "To speak, press the microphone and allow browser access. To save a preference, explicitly say “remember this”."}</p>
+            <p className="m-0 text-sm font-bold leading-6 text-forest">{isFa ? `سلام ${userName || "دوست عزیز"}، خوش آمدی! کافی است بگویی چه کاری انجام بدهم.` : `Welcome, ${userName || "there"}! Just tell me what you would like me to do.`}</p>
+            <p className="mb-1 mt-3 text-xs font-extrabold text-forest">{isFa ? "می‌توانم این کارها را برایت انجام دهم:" : "Here are some things I can do:"}</p>
+            <ul className="m-0 list-disc space-y-1 ps-5 text-xs leading-5 text-ink">
+              {isFa ? <>
+                <li>بازکردن بخش پروژه‌ها، حساب‌ها، کالاها یا امور مالی؛ حتی با عبارت‌های مختلف مثل «برو منوی کالاها».</li>
+                <li>جست‌وجو و نمایش اطلاعات پروژه‌ها، حساب‌ها، کالاها و موجودی، اسناد مالی، صرافی‌ها و محموله‌ها.</li>
+                <li>ثبت کالا یا ملزومات در پروژه؛ نام کالا و پروژه را بگو.</li>
+                <li>به‌خاطر سپردن ترجیحت، اگر صریحاً بگویی «این را به خاطر بسپار».</li>
+              </> : <>
+                <li>Open Projects, Accounts, Catalog, or Finance—even with different phrasing.</li>
+                <li>Search and show project, account, product/stock, ledger, exchange, and shipment information.</li>
+                <li>Register a product or supply; tell me its name and project.</li>
+                <li>Remember a preference when you explicitly ask me to.</li>
+              </>}
+            </ul>
+            <p className="mb-0 mt-2 text-[11px] leading-5 text-muted">{isFa ? "برای گفت‌وگوی صوتی، میکروفن را بزنید؛ تا ۹۰ ثانیه گوش می‌دهم و با توقف شما، گفتار را می‌فرستم." : "Press the microphone to speak. I can listen for up to 90 seconds; stop to submit your speech."}</p>
           </div>}
           {messages.map((message, index) => <div key={`${index}-${message.role}`} className={`max-w-[90%] rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${message.role === "user" ? "ms-auto bg-forest text-white" : "me-auto border border-line bg-white text-ink"}`}>
             <p className="m-0 whitespace-pre-wrap">{message.content}</p>
