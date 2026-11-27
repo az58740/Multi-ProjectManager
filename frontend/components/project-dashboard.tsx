@@ -42,8 +42,8 @@ const financialNavigation = [
 const accountNavigation = [
   { key: "accounts" as const, icon: Landmark, fa: "حساب‌ها", en: "Accounts" },
   { key: "exchanges" as const, icon: Coins, fa: "صرافی‌ها", en: "Exchanges" },
-  { key: "new-account" as const, icon: Plus, fa: "حساب صرافی", en: "Exchange account" },
-  { key: "new-exchange" as const, icon: MapPin, fa: "صرافی جدید", en: "New exchange" },
+  { key: "new-account" as const, icon: Plus, fa: "حساب", en: "Account" },
+  { key: "new-exchange" as const, icon: MapPin, fa: "صرافی", en: "Exchange" },
 ];
 
 function typeLabel(type: ProjectType, t: ReturnType<typeof useLocale>["t"]) {
@@ -316,7 +316,7 @@ export function ProjectDashboard() {
           {section === "financial" ? <>
             {financialNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={financialTab === key ? "page" : undefined} onClick={() => setFinancialTab(key)} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-bold leading-4 tracking-normal ${financialTab === key ? "bg-amber-100 text-amber-950" : "text-muted"}`}><Icon className="size-4 shrink-0" aria-hidden="true" /><span className="whitespace-nowrap">{isFa ? fa : en}</span></button>)}
           </> : section === "accounts" ? <>
-            {accountNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={accountTab === key ? "page" : undefined} onClick={() => setAccountTab(key)} className={`mx-0.5 flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl px-1 text-[10px] font-extrabold leading-4 transition ${accountTab === key ? "bg-blue-100 text-blue-900" : "text-muted hover:bg-cream"}`}><span className={`grid size-8 place-items-center rounded-lg ${accountTab === key ? "bg-white text-blue-800 shadow-sm" : "bg-cream text-blue-800"}`}><Icon className="size-4" aria-hidden="true" /></span><span className="max-w-full text-center whitespace-normal break-words">{isFa ? fa : en}</span></button>)}
+            {accountNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={accountTab === key ? "page" : undefined} onClick={() => setAccountTab(key)} className={`mx-0.5 flex min-h-16 min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl px-1 text-[10px] font-extrabold leading-4 transition ${accountTab === key ? "bg-blue-100 text-blue-900" : "text-muted hover:bg-cream"}`}><span className={`grid size-8 place-items-center rounded-lg ${accountTab === key ? "bg-white text-blue-800 shadow-sm" : "bg-cream text-blue-800"}`}><Icon className="size-4" aria-hidden="true" /></span><span className="max-w-full text-center whitespace-nowrap">{isFa ? fa : en}</span></button>)}
           </> : section === "catalog" ? <>
             {catalogNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={catalogTab === key ? "page" : undefined} onClick={() => setCatalogTab(key)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-0.5 text-[9px] font-extrabold leading-3 transition ${catalogTab === key ? "bg-emerald-100 text-emerald-900" : "text-muted hover:bg-cream"}`}><span className={`grid size-7 place-items-center rounded-lg ${catalogTab === key ? "bg-white text-emerald-800 shadow-sm" : "bg-cream text-emerald-800"}`}><Icon className="size-4" aria-hidden="true" /></span><span className="max-w-full text-center whitespace-nowrap">{isFa ? fa : en}</span></button>)}
           </> : <>
