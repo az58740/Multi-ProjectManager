@@ -338,8 +338,8 @@ export function ProjectDashboard() {
         </div>
       </nav>
 
-      <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_250px] lg:gap-8 lg:px-8">
-        <aside className="order-2 hidden lg:block">
+      <div dir={isFa ? "rtl" : "ltr"} className="mx-auto grid max-w-[1440px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-8 lg:px-8">
+        <aside className="hidden lg:block">
           <div className="sticky top-24 rounded-[26px] border border-white/80 bg-white/85 p-4 shadow-xl shadow-forest/[0.04] backdrop-blur">
             <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">{t.allProjects}</p>
             <MainMenuItem active={section === "overview"} open={expandedMenu === "overview"} icon={ClipboardList} label={t.activeProjects} onClick={() => { setSection("overview"); setExpandedMenu(expandedMenu === "overview" ? "overview" : "overview"); }} />
