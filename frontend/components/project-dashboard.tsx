@@ -302,13 +302,16 @@ export function ProjectDashboard() {
         </div>
       </header>
 
-      <nav aria-label={section === "financial" ? (isFa ? "عملیات مالی" : "Financial operations") : (isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation")} className="fixed inset-x-2 bottom-2 z-30 rounded-[20px] border border-line bg-paper/95 p-1.5 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
-        <div className={`mx-auto grid max-w-[1440px] gap-1 ${section === "financial" ? "grid-cols-4" : "grid-cols-5"}`}>
+      <nav aria-label={section === "financial" ? (isFa ? "عملیات مالی" : "Financial operations") : section === "accounts" ? (isFa ? "زیرمنوی حساب‌ها" : "Account submenu") : (isFa ? "منوی اصلی داشبورد" : "Main dashboard navigation")} className="fixed inset-x-2 bottom-2 z-30 rounded-[20px] border border-line bg-paper/95 p-1.5 shadow-xl shadow-forest/10 backdrop-blur lg:hidden">
+        <div className={`mx-auto grid max-w-[1440px] gap-1 ${section === "financial" ? "grid-cols-4" : section === "accounts" ? "grid-cols-5" : "grid-cols-5"}`}>
           {section === "financial" ? <>
             {financialNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={financialTab === key ? "page" : undefined} onClick={() => setFinancialTab(key)} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[9px] font-bold leading-4 tracking-normal ${financialTab === key ? "bg-amber-100 text-amber-950" : "text-muted"}`}><Icon className="size-4 shrink-0" aria-hidden="true" /><span className="whitespace-nowrap">{isFa ? fa : en}</span></button>)}
+          </> : section === "accounts" ? <>
+            {accountNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={accountTab === key ? "page" : undefined} onClick={() => setAccountTab(key)} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[8px] font-extrabold leading-3 tracking-normal transition ${accountTab === key ? "bg-blue-100 text-blue-900" : "text-muted"}`}><Icon className="size-4 shrink-0" aria-hidden="true" /><span className="whitespace-nowrap">{isFa ? fa : en}</span></button>)}
+            <button type="button" onClick={() => setSection("overview")} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[8px] font-extrabold leading-3 text-muted"><ClipboardList className="size-4 shrink-0" aria-hidden="true" /><span className="whitespace-nowrap">{isFa ? "بازگشت" : "Back"}</span></button>
           </> : <>
             <button type="button" onClick={() => setSection("overview")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "overview" ? "bg-sage text-forest" : "text-muted"}`}><ClipboardList className="size-3.5" />{isFa ? "پروژه‌ها" : "Projects"}</button>
-            <button type="button" onClick={() => { setSection("accounts"); setAccountTab("accounts"); }} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "accounts" ? "bg-sage text-forest" : "text-muted"}`}><Landmark className="size-3.5" />{isFa ? "حساب‌ها" : "Accounts"}</button>
+            <button type="button" onClick={() => { setSection("accounts"); setAccountTab("accounts"); }} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><Landmark className="size-3.5" />{isFa ? "حساب‌ها" : "Accounts"}</button>
             <button type="button" onClick={() => setSection("catalog")} className={`flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold ${section === "catalog" ? "bg-sage text-forest" : "text-muted"}`}><Boxes className="size-3.5" />{isFa ? "کالاها" : "Catalog"}</button>
             <button type="button" onClick={() => { setSection("financial"); setFinancialTab("overview"); }} className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl text-[9px] font-extrabold text-muted"><WalletCards className="size-3.5" />{isFa ? "مالی" : "Finance"}</button>
             <Link href="/dashboard/users" className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[9px] font-extrabold text-muted"><Users className="size-3.5 shrink-0" aria-hidden="true" /><span className="text-center leading-3">{m.userList}</span></Link>
@@ -348,12 +351,6 @@ export function ProjectDashboard() {
               <button type="button" onClick={() => setNotice("")} className="ms-auto rounded-full p-1 hover:bg-white/70" aria-label={t.close}><X className="size-4" aria-hidden="true" /></button>
             </div>
           )}
-          {section === "accounts" && <nav aria-label={isFa ? "زیرمنوی حساب‌ها" : "Account submenu"} className="mb-5 rounded-2xl border border-blue-100 bg-blue-50/80 p-1.5 shadow-sm">
-            <div className="grid grid-cols-4 gap-1">
-              {accountNavigation.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" aria-current={accountTab === key ? "page" : undefined} onClick={() => setAccountTab(key)} className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-extrabold leading-4 transition sm:min-h-16 sm:text-xs ${accountTab === key ? "bg-blue-700 text-white shadow-sm" : "text-blue-900 hover:bg-white/70"}`}><Icon className="size-4 sm:size-5" aria-hidden="true" /><span className="whitespace-nowrap">{isFa ? fa : en}</span></button>)}
-            </div>
-            <button type="button" onClick={() => setSection("overview")} className="mt-1 inline-flex min-h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-bold text-blue-800 hover:bg-white/70"><ClipboardList className="size-3.5" aria-hidden="true" />{isFa ? "بازگشت به منوی اصلی" : "Back to main menu"}</button>
-          </nav>}
           {section === "overview" && <div className="relative isolate overflow-hidden rounded-[24px] bg-forest px-4 py-4 text-white shadow-xl shadow-forest/10 sm:rounded-[28px] sm:px-7 sm:py-6">
             <div aria-hidden="true" className="pointer-events-none absolute -end-10 -top-20 size-64 rounded-full border-[36px] border-white/[0.045]" />
             <div aria-hidden="true" className="pointer-events-none absolute -end-2 -bottom-28 size-48 rounded-full border-[28px] border-amber-light/[0.08]" />
