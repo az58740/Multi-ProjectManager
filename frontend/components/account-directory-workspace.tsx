@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Landmark, LoaderCircle, MapPin, Pencil, Phone, RefreshCw } from "lucide-react";
+import { ChevronRight, Landmark, LoaderCircle, MapPin, Pencil, Phone, RefreshCw } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { ProjectModal } from "@/components/project-modal";
 import { jsonHeaders } from "@/lib/accounts";
@@ -17,7 +17,7 @@ const emptyAccount = { name: "", accountNumber: "", bankName: banks[0], currency
 type AccountDraft = typeof emptyAccount;
 export type AccountDirectoryView = "accounts" | "exchanges" | "new-account" | "new-exchange";
 
-export function AccountDirectoryWorkspace({ projects, view, onViewChange }: { projects: Project[]; view: AccountDirectoryView; onViewChange: (view: AccountDirectoryView) => void }) {
+export function AccountDirectoryWorkspace({ projects, view, onViewChange, onBack }: { projects: Project[]; view: AccountDirectoryView; onViewChange: (view: AccountDirectoryView) => void; onBack: () => void }) {
   const { locale } = useLocale();
   const fa = locale === "fa";
   const [projectCode, setProjectCode] = useState(projects[0]?.code ?? "");
@@ -91,6 +91,7 @@ export function AccountDirectoryWorkspace({ projects, view, onViewChange }: { pr
 
   return (
     <section className="mt-5 rounded-[24px] border border-blue-100 bg-slate-50/80 p-3 shadow-sm sm:mt-6 sm:p-5">
+      <button type="button" onClick={onBack} aria-label={fa ? "بازگشت به منوی اصلی" : "Back to main menu"} className="mb-3 inline-flex min-h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-bold text-muted transition hover:bg-blue-100 hover:text-blue-950"><ChevronRight className={`size-3.5 ${!fa ? "rotate-180" : ""}`} aria-hidden="true" />{fa ? "بازگشت به منوی اصلی" : "Back to main menu"}</button>
       <header className="relative isolate overflow-hidden rounded-[20px] bg-gradient-to-br from-blue-800 via-blue-700 to-indigo-800 px-4 py-4 text-white shadow-lg shadow-blue-900/15 sm:px-5 sm:py-5">
         <div aria-hidden="true" className="pointer-events-none absolute -end-8 -top-12 size-36 rounded-full border-[22px] border-white/[0.08]" />
         <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
