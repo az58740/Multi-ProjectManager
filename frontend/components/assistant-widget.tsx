@@ -29,7 +29,7 @@ function getOfflineResponse(text: string, isFa: boolean): { reply: string; actio
     { section: "catalog", terms: ["catalog", "product", "products", "کالا", "کالاها", "محصول"], labelFa: "کالاها", labelEn: "Catalog" },
     { section: "financial", terms: ["finance", "financial", "payment", "payments", "receipt", "مالی", "پرداخت", "دریافت"], labelFa: "مالی", labelEn: "Finance" },
   ];
-  const openIntent = /\b(open|show|go to|navigate)\b|باز کن|برو به|نمایش بده|بخش/u.test(normalized);
+  const openIntent = /\b(open|show|go to|navigate|take me to)\b|باز کن|برو به|برو منوی|برو سراغ|برو سمت|رفتن به|نمایش بده|نشون بده|بخش/u.test(normalized);
   if (openIntent) {
     const match = sections.find((item) => item.terms.some((term) => normalized.includes(term)));
     if (match) return {
