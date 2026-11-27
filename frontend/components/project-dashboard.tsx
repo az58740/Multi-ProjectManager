@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Boxes, Building2, Check, ChevronDown, ChevronLeft, CircleDollarSign, CirclePlus, ClipboardList, Coins, Globe2, HandCoins, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Store, Users, Wallet, WalletCards, Warehouse, X } from "lucide-react";
+import { Boxes, Building2, Check, ChevronDown, CircleDollarSign, CirclePlus, ClipboardList, Coins, Globe2, HandCoins, Landmark, Leaf, LogOut, MapPin, Plus, Search, Snowflake, Store, Users, Wallet, WalletCards, Warehouse, X } from "lucide-react";
 import { useLocale } from "@/app/providers";
 import { BrandMark } from "@/components/brand-mark";
 import { AssistantWidget } from "@/components/assistant-widget";
@@ -87,13 +87,12 @@ function statusLabel(status: ProjectStatus, t: ReturnType<typeof useLocale>["t"]
   return labels[status];
 }
 
-function SidebarMenuButton({ active, icon: Icon, label, expanded, onClick }: { active: boolean; icon: typeof ClipboardList; label: string; expanded: boolean; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className={`mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold transition ${active ? "bg-sage text-forest" : "text-muted hover:bg-cream hover:text-forest"}`}><Icon className="size-4" aria-hidden="true" /><span>{label}</span><ChevronDown className={`ms-auto size-4 transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden="true" /></button>;
+function MainMenuItem({ active, open, icon: Icon, label, onClick }: { active: boolean; open: boolean; icon: typeof ClipboardList; label: string; onClick: () => void }) {
+  return <button type="button" onClick={onClick} className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-start text-sm font-extrabold transition ${active ? "bg-sage text-forest" : "text-muted hover:bg-cream"}`}><Icon className="size-4" aria-hidden="true" />{label}<ChevronDown className={`ms-auto size-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" /></button>;
 }
-
-function TreeSubmenu({ items, active, onSelect, color, isFa }: { items: Array<{ key: string; icon: typeof ClipboardList; fa: string; en: string }>; active: string; onSelect: (key: string) => void; color: "blue" | "emerald" | "amber"; isFa: boolean }) {
-  const tone = color === "blue" ? "text-blue-800" : color === "emerald" ? "text-emerald-800" : "text-amber-900";
-  return <div className="mb-1 ms-5 border-s border-line ps-2">{items.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" onClick={() => onSelect(key)} className={`mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-start text-xs font-bold transition ${active === key ? `bg-cream ${tone}` : "text-muted hover:bg-cream"}`}><span className={`size-1.5 rounded-full ${active === key ? "bg-current" : "bg-line"}`} /><Icon className="size-3.5" aria-hidden="true" /><span>{isFa ? fa : en}</span></button>)}</div>;
+function TreeItems({ items, active, onSelect, tone, isFa }: { items: Array<{ key: string; icon: typeof ClipboardList; fa: string; en: string }>; active: string; onSelect: (key: string) => void; tone: "sage" | "blue" | "emerald" | "amber"; isFa: boolean }) {
+  const activeClass = tone === "sage" ? "bg-sage text-forest" : tone === "blue" ? "bg-blue-100 text-blue-900" : tone === "emerald" ? "bg-emerald-100 text-emerald-950" : "bg-amber-100 text-amber-950";
+  return <div className="mb-1 ms-5 border-s border-line ps-2">{items.map(({ key, icon: Icon, fa, en }) => <button key={key} type="button" onClick={() => onSelect(key)} className={`mt-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-start text-xs font-bold ${active === key ? activeClass : "text-muted hover:bg-cream"}`}><span className="size-1.5 shrink-0 rounded-full bg-current opacity-60" /><Icon className="size-3.5" aria-hidden="true" />{isFa ? fa : en}</button>)}</div>;
 }
 
 export function ProjectDashboard() {
@@ -126,7 +125,7 @@ export function ProjectDashboard() {
   const [financialTab, setFinancialTab] = useState<FinancialTab>("overview");
   const [accountTab, setAccountTab] = useState<AccountTab>("accounts");
   const [catalogTab, setCatalogTab] = useState<CatalogTab>("products");
-  const [expandedMenu, setExpandedMenu] = useState<DashboardSection | null>("overview");
+  const [expandedMenu, setExpandedMenu] = useState<DashboardSection>("overview");
 
   useEffect(() => {
     let active = true;
@@ -339,23 +338,19 @@ export function ProjectDashboard() {
         </div>
       </nav>
 
-      <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_270px] lg:gap-8 lg:px-8">
+      <div className="mx-auto grid max-w-[1440px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[minmax(0,1fr)_250px] lg:gap-8 lg:px-8">
         <aside className="order-2 hidden lg:block">
-          <div className="sticky top-24 overflow-hidden rounded-[28px] border border-white/80 bg-white/90 p-3 shadow-xl shadow-forest/[0.06] backdrop-blur">
-            <div className="mb-3 flex items-center gap-3 rounded-2xl bg-forest px-3 py-3 text-white">
-              <BrandMark compact />
-              <div className="min-w-0"><p className="m-0 truncate text-sm font-black">{isFa ? "مدیریت پروژه" : "Project manager"}</p><p className="m-0 mt-0.5 text-[10px] text-white/65">{userName || (isFa ? "فضای کاری شما" : "Your workspace")}</p></div>
-            </div>
-            <p className="mb-2 px-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted">{isFa ? "منوی اصلی" : "MAIN MENU"}</p>
-            <SidebarMenuButton active={section === "overview"} icon={ClipboardList} label={isFa ? "پروژه‌ها" : "Projects"} expanded={expandedMenu === "overview"} onClick={() => { setSection("overview"); setExpandedMenu(expandedMenu === "overview" ? null : "overview"); }} />
-            {expandedMenu === "overview" && section === "overview" && <div className="mb-1 ms-5 border-s border-sage-dark/70 ps-2"><p className="m-0 rounded-xl bg-sage/60 px-3 py-2 text-xs font-bold text-forest">{isFa ? "همه پروژه‌ها" : "All projects"}</p></div>}
-            <SidebarMenuButton active={section === "accounts"} icon={Landmark} label={isFa ? "مدیریت حساب‌ها" : "Account management"} expanded={expandedMenu === "accounts"} onClick={() => { setSection("accounts"); setAccountTab("accounts"); setExpandedMenu(expandedMenu === "accounts" ? null : "accounts"); }} />
-            {expandedMenu === "accounts" && <TreeSubmenu items={accountNavigation.map((item) => ({ ...item, fa: item.key === "new-account" ? "تعریف حساب" : item.key === "new-exchange" ? "تعریف صرافی" : item.fa }))} active={accountTab} onSelect={(key) => setAccountTab(key as AccountTab)} color="blue" isFa={isFa} />}
-            <SidebarMenuButton active={section === "catalog"} icon={Boxes} label={isFa ? "کالا و ملزومات" : "Products & supplies"} expanded={expandedMenu === "catalog"} onClick={() => { setSection("catalog"); setExpandedMenu(expandedMenu === "catalog" ? null : "catalog"); }} />
-            {expandedMenu === "catalog" && <TreeSubmenu items={catalogNavigation.map((item) => ({ ...item, fa: item.key === "new-product" ? "تعریف کالا" : item.key === "new-supply" ? "تعریف ملزومات" : item.fa }))} active={catalogTab} onSelect={(key) => setCatalogTab(key as CatalogTab)} color="emerald" isFa={isFa} />}
-            <SidebarMenuButton active={section === "financial"} icon={WalletCards} label={isFa ? "مالی" : "Finance"} expanded={expandedMenu === "financial"} onClick={() => { setSection("financial"); setFinancialTab("overview"); setExpandedMenu(expandedMenu === "financial" ? null : "financial"); }} />
-            {expandedMenu === "financial" && <TreeSubmenu items={financialNavigation} active={financialTab} onSelect={(key) => setFinancialTab(key as FinancialTab)} color="amber" isFa={isFa} />}
-            <Link href="/dashboard/users" className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-extrabold text-muted transition hover:bg-cream hover:text-forest"><Users className="size-4" aria-hidden="true" />{m.userList}<ChevronLeft className="ms-auto size-3.5 opacity-50" /></Link>
+          <div className="sticky top-24 rounded-[26px] border border-white/80 bg-white/85 p-4 shadow-xl shadow-forest/[0.04] backdrop-blur">
+            <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">{t.allProjects}</p>
+            <MainMenuItem active={section === "overview"} open={expandedMenu === "overview"} icon={ClipboardList} label={t.activeProjects} onClick={() => { setSection("overview"); setExpandedMenu(expandedMenu === "overview" ? "overview" : "overview"); }} />
+            {expandedMenu === "overview" && <TreeItems items={[{ key: "overview", icon: ClipboardList, fa: isFa ? "همه پروژه‌ها" : "All projects", en: "All projects" }]} active="overview" onSelect={() => setSection("overview")} tone="sage" isFa={isFa} />}
+            <MainMenuItem active={section === "accounts"} open={expandedMenu === "accounts"} icon={Landmark} label={isFa ? "مدیریت حساب‌ها" : "Account management"} onClick={() => { setSection("accounts"); setAccountTab("accounts"); setExpandedMenu(expandedMenu === "accounts" ? "overview" : "accounts"); }} />
+            {expandedMenu === "accounts" && <TreeItems items={accountNavigation} active={accountTab} onSelect={(key) => setAccountTab(key as AccountTab)} tone="blue" isFa={isFa} />}
+            <MainMenuItem active={section === "catalog"} open={expandedMenu === "catalog"} icon={Boxes} label={isFa ? "کالا و ملزومات" : "Products & supplies"} onClick={() => { setSection("catalog"); setExpandedMenu(expandedMenu === "catalog" ? "overview" : "catalog"); }} />
+            {expandedMenu === "catalog" && <TreeItems items={catalogNavigation} active={catalogTab} onSelect={(key) => setCatalogTab(key as CatalogTab)} tone="emerald" isFa={isFa} />}
+            <MainMenuItem active={section === "financial"} open={expandedMenu === "financial"} icon={WalletCards} label={isFa ? "مالی" : "Finance"} onClick={() => { setSection("financial"); setFinancialTab("overview"); setExpandedMenu(expandedMenu === "financial" ? "overview" : "financial"); }} />
+            {expandedMenu === "financial" && <TreeItems items={financialNavigation} active={financialTab} onSelect={(key) => setFinancialTab(key as FinancialTab)} tone="amber" isFa={isFa} />}
+            <Link href="/dashboard/users" className="mt-1 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-extrabold text-muted hover:bg-cream"><Users className="size-4" aria-hidden="true" />{m.userList}</Link>
             <div className="mt-5 rounded-2xl bg-forest p-4 text-white"><div className="grid size-10 place-items-center rounded-[14px] bg-white/10 text-amber-light"><Globe2 className="size-5" aria-hidden="true" /></div><p className="mb-0 mt-4 text-sm font-extrabold">{t.approachKicker}</p><p className="mb-0 mt-1 text-xs leading-6 text-white/70">{t.approachDescription}</p></div>
           </div>
         </aside>
