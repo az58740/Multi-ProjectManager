@@ -338,9 +338,9 @@ export function ProjectDashboard() {
         </div>
       </nav>
 
-      <div dir={isFa ? "rtl" : "ltr"} className="mx-auto grid max-w-[1440px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-8 lg:px-8">
+      <div dir={isFa ? "rtl" : "ltr"} className="mx-auto grid max-w-[1600px] gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:grid-cols-[270px_minmax(0,1fr)] lg:gap-9 lg:px-10 lg:py-9">
         <aside className="hidden lg:block">
-          <div className="sticky top-24 rounded-[26px] border border-white/80 bg-white/85 p-4 shadow-xl shadow-forest/[0.04] backdrop-blur">
+          <div className="sticky top-24 rounded-[28px] border border-line/80 bg-white/95 p-5 shadow-[0_18px_50px_rgba(23,63,52,0.07)] backdrop-blur">
             <p className="mb-3 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-muted">{t.allProjects}</p>
             <MainMenuItem active={section === "overview"} open={expandedMenu === "overview"} icon={ClipboardList} label={t.activeProjects} onClick={() => { setSection("overview"); setExpandedMenu(expandedMenu === "overview" ? "overview" : "overview"); }} />
             {expandedMenu === "overview" && <TreeItems items={[{ key: "overview", icon: ClipboardList, fa: isFa ? "همه پروژه‌ها" : "All projects", en: "All projects" }]} active="overview" onSelect={() => setSection("overview")} tone="sage" isFa={isFa} />}
@@ -365,13 +365,13 @@ export function ProjectDashboard() {
               <button type="button" onClick={() => setNotice("")} className="ms-auto rounded-full p-1 hover:bg-white/70" aria-label={t.close}><X className="size-4" aria-hidden="true" /></button>
             </div>
           )}
-          {section === "overview" && <div className="relative isolate overflow-hidden rounded-[24px] bg-forest px-4 py-4 text-white shadow-xl shadow-forest/10 sm:rounded-[28px] sm:px-7 sm:py-6">
+          {section === "overview" && <div className="relative isolate overflow-hidden rounded-[24px] bg-forest px-4 py-4 text-white shadow-xl shadow-forest/10 sm:rounded-[28px] sm:px-7 sm:py-6 lg:rounded-[32px] lg:px-9 lg:py-8">
             <div aria-hidden="true" className="pointer-events-none absolute -end-10 -top-20 size-64 rounded-full border-[36px] border-white/[0.045]" />
             <div aria-hidden="true" className="pointer-events-none absolute -end-2 -bottom-28 size-48 rounded-full border-[28px] border-amber-light/[0.08]" />
             <div className="relative flex flex-col justify-between gap-3 sm:flex-row sm:items-center sm:gap-5">
               <div className="min-w-0">
                 <p className="mb-1 text-[10px] font-bold tracking-wide text-amber-light sm:text-xs">{isFa ? "نمای کلی فعالیت‌ها" : "WORKSPACE OVERVIEW"}</p>
-                <h1 className="m-0 truncate text-lg font-black leading-tight tracking-tight sm:text-2xl">{t.dashboardKicker}</h1>
+                <h1 className="m-0 truncate text-lg font-black leading-tight tracking-tight sm:text-2xl lg:text-3xl">{t.dashboardKicker}</h1>
                 <p className="mb-0 mt-1 max-w-2xl text-[11px] leading-5 text-white/75 sm:mt-2 sm:text-xs sm:leading-6">{t.dashboardSubtitle}</p>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
@@ -384,7 +384,7 @@ export function ProjectDashboard() {
           </div>}
 
           {section !== "overview" ? (section === "financial" ? <FinancialWorkspace projects={projects} tab={financialTab} onBack={() => setSection("overview")} /> : projects.length > 0 ? section === "accounts" ? <AccountManagementWorkspace projects={projects} tab={accountTab} onTabChange={setAccountTab} onBack={() => setSection("overview")} /> : <ProjectResourcesWorkspace projects={projects} tab={catalogTab} onTabChange={setCatalogTab} onBack={() => setSection("overview")} /> : <div className="mt-6 rounded-2xl border border-dashed border-sage-dark bg-paper p-8 text-center text-sm text-muted">{t.noProjects}</div>) : <>
-          <div className="mt-6 grid grid-cols-2 gap-3 rounded-[24px] border border-white/80 bg-white/65 p-3 shadow-sm shadow-forest/[0.03] sm:grid-cols-[minmax(0,1fr)_190px_190px] sm:p-4">
+          <div className="mt-6 grid grid-cols-2 gap-3 rounded-[24px] border border-white/80 bg-white/75 p-3 shadow-sm shadow-forest/[0.03] sm:grid-cols-[minmax(0,1fr)_190px_190px] sm:p-4 lg:mt-8 lg:gap-4 lg:rounded-[28px] lg:p-5">
             <div className="col-span-2 flex min-h-12 items-center gap-3 rounded-2xl border border-line bg-paper px-4 text-sm text-muted focus-within:border-forest/40 focus-within:ring-4 focus-within:ring-sage/70 sm:col-span-1">
               <Search className="size-4 shrink-0" aria-hidden="true" />
               <label htmlFor="project-search" className="sr-only">{t.projectSearch}</label>
@@ -417,22 +417,22 @@ export function ProjectDashboard() {
               {projects.length === 0 && <button type="button" onClick={() => { setSelectedProject(null); setModalMode("create"); }} className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-forest underline decoration-sage-dark underline-offset-4"><Plus className="size-4" aria-hidden="true" />{t.createFirstProject}</button>}
             </div>
           ) : (
-            <div id="projects-list" className="mt-5 scroll-mt-20 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div id="projects-list" className="mt-5 scroll-mt-20 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 lg:mt-7 lg:gap-5">
               {filteredProjects.map((project) => {
                 const validType: ProjectType = isProjectType(project.type) ? project.type : "other";
                 const typeStyle = projectTypeStyles[validType];
                 return (
-                  <article key={project.id} className="group overflow-hidden rounded-[24px] border border-line/80 bg-white shadow-sm shadow-forest/[0.035] transition duration-300 hover:-translate-y-1 hover:border-sage-dark hover:shadow-xl hover:shadow-forest/[0.08]">
+                  <article key={project.id} className="group overflow-hidden rounded-[24px] border border-line/80 bg-white shadow-[0_8px_24px_rgba(23,63,52,0.045)] transition duration-300 hover:-translate-y-1 hover:border-sage-dark hover:shadow-[0_20px_42px_rgba(23,63,52,0.12)] lg:rounded-[28px]">
                     <button type="button" onClick={() => validType === "export" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/export`) : validType === "personal-account" ? router.push(`/dashboard/projects/${encodeURIComponent(project.code)}/personal`) : void showDetails(project)} aria-label={`${t.projectDetails}: ${project.name}`} className="block w-full text-start outline-none focus-visible:ring-4 focus-visible:ring-sage-dark">
-                      <div className={`${typeStyle.header} ${typeStyle.ink} flex min-h-[62px] items-center justify-between gap-3 px-4 py-3`}>
+                      <div className={`${typeStyle.header} ${typeStyle.ink} flex min-h-[62px] items-center justify-between gap-3 px-4 py-3 lg:min-h-[76px] lg:px-5`}>
                         <div className="flex min-w-0 items-center gap-3">
                           <span className={`grid size-10 shrink-0 place-items-center rounded-2xl ${typeStyle.icon}`}><TypeIcon type={validType} className="size-5" /></span>
                           <p className="mb-0 truncate text-sm font-black leading-5">{typeLabel(validType, t)}</p>
                         </div>
                         <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${typeStyle.status}`}>{statusLabel(project.status, t)}</span>
                       </div>
-                      <div className="p-3.5">
-                        <h2 className="mb-3 break-words text-base font-black leading-6 text-forest">{project.name}</h2>
+                      <div className="p-3.5 lg:p-5">
+                        <h2 className="mb-3 break-words text-base font-black leading-6 text-forest lg:text-lg">{project.name}</h2>
                         <div className="space-y-1 text-[11px] text-muted">
                         <div className="flex items-center gap-2"><MapPin className="size-4 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.location || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectLocation}</span></div>
                         <div className="hidden items-center gap-2 sm:flex"><MapPin className="size-3.5 shrink-0 text-amber" aria-hidden="true" /><span className="truncate">{project.destination || "—"}</span><span className="ms-auto shrink-0 font-semibold">{t.projectDestination}</span></div>
