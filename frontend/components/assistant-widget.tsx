@@ -21,6 +21,38 @@ type SpeechRecognitionLike = {
 };
 type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike };
 
+function getOfflineResponse(text: string, isFa: boolean): { reply: string; action: AgentAction } {
+  const normalized = text.toLocaleLowerCase();
+  const sections: { section: DashboardSection; terms: string[]; labelFa: string; labelEn: string }[] = [
+    { section: "overview", terms: ["project", "projects", "overview", "پروژه", "پروژه‌ها", "نمای کلی"], labelFa: "پروژه‌ها", labelEn: "Projects" },
+    { section: "accounts", terms: ["account", "accounts", "حساب", "حساب‌ها"], labelFa: "حساب‌ها", labelEn: "Accounts" },
+    { section: "catalog", terms: ["catalog", "product", "products", "کالا", "کالاها", "محصول"], labelFa: "کالاها", labelEn: "Catalog" },
+    { section: "financial", terms: ["finance", "financial", "payment", "payments", "receipt", "مالی", "پرداخت", "دریافت"], labelFa: "مالی", labelEn: "Finance" },
+  ];
+  const openIntent = /\b(open|show|go to|navigate)\b|باز کن|برو به|نمایش بده|بخش/u.test(normalized);
+  if (openIntent) {
+    const match = sections.find((item) => item.terms.some((term) => normalized.includes(term)));
+    if (match) return {
+      reply: isFa ? `اتصال ابری در دسترس نیست، اما بخش «${match.labelFa}» را برایتان باز کردم.` : `Cloud AI is unavailable, but I opened ${match.labelEn} for you.`,
+      action: { type: "navigate", section: match.section },
+    };
+  }
+  const searchMatch = text.match(/(?:search(?:\s+for)?|جست(?:جو|‌وجو)(?:ی)?|پیدا(?:\s+کن)?)(?:\s+برای)?\s*[«"“]?(.+?)[»"”]?\s*$/iu);
+  if (searchMatch?.[1]?.trim()) {
+    const query = searchMatch[1].trim().slice(0, 100);
+    return {
+      reply: isFa ? `اتصال ابری در دسترس نیست؛ فهرست پروژه‌ها را با «${query}» فیلتر کردم.` : `Cloud AI is unavailable; I filtered the project list for “${query}”.`,
+      action: { type: "search", query },
+    };
+  }
+  return {
+    reply: isFa
+      ? "اتصال به هوش مصنوعی ابری برقرار نیست. در حالت آفلاین می‌توانم بخش‌های پروژه‌ها، حساب‌ها، کالاها یا مالی را باز کنم و فهرست پروژه‌ها را جست‌وجو کنم؛ برای اطلاعات زندهٔ پروژه‌ها دوباره آنلاین شوید."
+      : "Cloud AI is unavailable. Offline, I can open Projects, Accounts, Catalog, or Finance and search the project list. Reconnect to get live project data.",
+    action: null,
+  };
+}
+
 type AssistantWidgetProps = {
   userName: string;
   onAction: (action: AgentAction) => void;
@@ -34,6 +66,7 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
   const [busy, setBusy] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
+  const [offline, setOffline] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -67,12 +100,14 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nextMessages, locale }),
+        signal: AbortSignal.timeout(12_000),
       });
       const payload: unknown = await response.json();
       if (!response.ok || !payload || typeof payload !== "object" || !("reply" in payload) || typeof payload.reply !== "string") {
         throw new Error("assistant request failed");
       }
       const reply = payload.reply;
+      setOffline(false);
       const updatedMessages = [...nextMessages, { role: "assistant" as const, content: reply }].slice(-12);
       messagesRef.current = updatedMessages;
       setMessages(updatedMessages);
@@ -83,7 +118,14 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
       }
       if (spoken) speak(reply);
     } catch {
-      setError(isFa ? "اتصال به دستیار برقرار نشد. دوباره تلاش کنید." : "The assistant could not connect. Please try again.");
+      const fallback = getOfflineResponse(text, isFa);
+      setOffline(true);
+      setError(isFa ? "حالت آفلاین فعال شد؛ پاسخ‌های هوشمند و داده‌های زنده در دسترس نیستند." : "Offline mode is active; AI answers and live data are unavailable.");
+      const updatedMessages = [...nextMessages, { role: "assistant" as const, content: fallback.reply }].slice(-12);
+      messagesRef.current = updatedMessages;
+      setMessages(updatedMessages);
+      if (fallback.action) onAction(fallback.action);
+      if (spoken) speak(fallback.reply);
     } finally {
       setBusy(false);
     }
@@ -126,13 +168,13 @@ export function AssistantWidget({ userName, onAction }: AssistantWidgetProps) {
   }
 
   return (
-    <div className={`fixed bottom-4 z-50 flex flex-col gap-3 ${isFa ? "left-4 items-start" : "right-4 items-end"}`} dir={isFa ? "rtl" : "ltr"}>
+    <div className={`fixed bottom-20 z-50 flex flex-col gap-3 sm:bottom-4 ${isFa ? "left-4 items-start" : "right-4 items-end"}`} dir={isFa ? "rtl" : "ltr"}>
       {open && <section aria-label={isFa ? "دستیار هوشمند" : "AI assistant"} className="flex h-[min(540px,calc(100dvh-100px))] w-[min(370px,calc(100vw-32px))] flex-col overflow-hidden rounded-[24px] border border-forest/10 bg-white shadow-2xl shadow-forest/20">
         <header className="flex items-center gap-3 bg-forest px-4 py-3.5 text-white">
           <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-white/15"><Bot className="size-5" aria-hidden="true" /></span>
           <div className="min-w-0 flex-1">
             <h2 className="m-0 text-sm font-black">{isFa ? "دستیار هوشمند" : "AI assistant"}</h2>
-            <p className="m-0 mt-0.5 flex items-center gap-1.5 text-[11px] text-white/75"><span className="size-1.5 rounded-full bg-emerald-300" />{isFa ? `آمادهٔ پاسخ‌گویی به ${userName || "شما"}` : `Ready to help, ${userName || "there"}`}</p>
+            <p className="m-0 mt-0.5 flex items-center gap-1.5 text-[11px] text-white/75"><span className={`size-1.5 rounded-full ${offline ? "bg-amber-300" : "bg-emerald-300"}`} />{offline ? (isFa ? "حالت آفلاین" : "Offline mode") : isFa ? `آمادهٔ پاسخ‌گویی به ${userName || "شما"}` : `Ready to help, ${userName || "there"}`}</p>
           </div>
           <button type="button" onClick={() => setOpen(false)} aria-label={isFa ? "بستن دستیار" : "Close assistant"} className="grid size-9 place-items-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white"><ChevronDown className="size-5" aria-hidden="true" /></button>
         </header>
